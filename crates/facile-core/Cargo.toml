@@ -1,0 +1,12 @@
+[package]
+name = "facile-core"
+description = "What the server and the browser of Facile share: views written in Rythme, their HTML, JSON."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rythme.workspace = true
+serde_json.workspace = true
+serde = "1"

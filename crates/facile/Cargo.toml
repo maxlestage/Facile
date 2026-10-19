@@ -1,0 +1,45 @@
+[package]
+name = "facile"
+description = "Facile: the full-stack web framework for the Rythme language. A server faster than Vitesse, middlewares, an ORM, and a front end in WebAssembly."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+readme = "../../README.md"
+default-run = "facile"
+
+[[bin]]
+name = "facile"
+path = "src/main.rs"
+
+[features]
+default = ["sqlite", "postgres"]
+## SQLite databases (`DATABASE_URL=sqlite://app.db`), compiled in.
+sqlite = ["dep:rusqlite"]
+## PostgreSQL, with TLS (Heroku Postgres, Neon, Supabase...).
+postgres = ["dep:postgres", "dep:tokio-postgres-rustls", "dep:rustls", "dep:webpki-roots"]
+
+[dev-dependencies]
+httparse = "1.10"
+
+[dependencies]
+facile-core = { path = "../facile-core" }
+rythme.workspace = true
+serde_json.workspace = true
+mio = { version = "1", features = ["net", "os-poll"] }
+socket2 = { version = "0.5", features = ["all"] }
+httparse = "1.10"
+slab = "0.4"
+rustc-hash = "2"
+flate2 = "1"
+sha2 = "0.10"
+hmac = "0.12"
+signal-hook = { version = "0.3", default-features = false }
+mimalloc = { version = "0.1", default-features = false }
+rusqlite = { version = "0.32", features = ["bundled"], optional = true }
+postgres = { version = "0.19", optional = true }
+tokio-postgres-rustls = { version = "0.13", optional = true }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"], optional = true }
+webpki-roots = { version = "0.26", optional = true }

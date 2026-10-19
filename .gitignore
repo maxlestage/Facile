@@ -1,0 +1,8 @@
+/target
+**/target
+*.db
+*.db-shm
+*.db-wal
+# A local [patch] to work on Rythme beside Facile.
+/.cargo/config.toml
+node_modules/

@@ -1,0 +1,71 @@
+/* The theme of Facile's pages: readable without writing any CSS, light and
+   dark. Leave it out with `page({base_css: false, ...})`. */
+:root {
+  color-scheme: light dark;
+  --f-bg: #fbfbfd;
+  --f-fg: #16161d;
+  --f-muted: #5d5d6e;
+  --f-line: #e4e4ec;
+  --f-card: #ffffff;
+  --f-accent: #6d4aff;
+  --f-accent-2: #00b8e6;
+  --f-radius: 14px;
+  --f-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --f-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --f-bg: #0c0c12;
+    --f-fg: #ececf3;
+    --f-muted: #a2a2b5;
+    --f-line: #262633;
+    --f-card: #14141d;
+    --f-accent: #9b84ff;
+    --f-accent-2: #3dd6ff;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--f-bg);
+  color: var(--f-fg);
+  font: 17px/1.6 var(--f-font);
+  -webkit-font-smoothing: antialiased;
+}
+main, .f-container { max-width: 72rem; margin: 0 auto; padding: 1.5rem 1rem; }
+h1, h2, h3, h4 { line-height: 1.2; letter-spacing: -0.02em; margin: 1.6em 0 0.6em; }
+h1 { font-size: clamp(2rem, 5vw, 3.2rem); margin-top: 0.6em; }
+a { color: var(--f-accent); text-underline-offset: 0.18em; }
+img, video, canvas, svg { max-width: 100%; height: auto; }
+code, pre, kbd { font-family: var(--f-mono); font-size: 0.92em; }
+:not(pre) > code { background: color-mix(in srgb, var(--f-accent) 10%, transparent); padding: 0.1em 0.35em; border-radius: 6px; }
+pre { background: var(--f-card); border: 1px solid var(--f-line); border-radius: var(--f-radius); padding: 1rem 1.2rem; overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border-bottom: 1px solid var(--f-line); padding: 0.55rem 0.6rem; text-align: left; }
+hr { border: 0; border-top: 1px solid var(--f-line); margin: 2rem 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button, .f-button {
+  display: inline-flex; align-items: center; gap: 0.4em;
+  background: var(--f-accent); color: #fff; border: 0; border-radius: 999px;
+  padding: 0.55em 1.15em; cursor: pointer; text-decoration: none; font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s;
+}
+button:hover, .f-button:hover { transform: translateY(-1px); box-shadow: 0 6px 22px color-mix(in srgb, var(--f-accent) 35%, transparent); }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid color-mix(in srgb, var(--f-accent) 55%, transparent); outline-offset: 2px; }
+input, select, textarea {
+  background: var(--f-card); border: 1px solid var(--f-line); border-radius: 10px; padding: 0.55em 0.75em; min-width: 0;
+}
+.f-card { background: var(--f-card); border: 1px solid var(--f-line); border-radius: var(--f-radius); padding: 1.2rem 1.4rem; }
+facile-island { display: contents; }
+
+/* The pages of errors of the server. */
+.facile-error { max-width: 44rem; margin: 12vh auto; padding: 0 1rem; text-align: center; }
+.facile-code {
+  font-size: clamp(4rem, 14vw, 8rem); font-weight: 800; margin: 0; line-height: 1;
+  background: linear-gradient(135deg, var(--f-accent), var(--f-accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.facile-trace { text-align: left; white-space: pre-wrap; font-size: 0.85rem; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

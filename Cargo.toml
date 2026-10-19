@@ -1,0 +1,31 @@
+[workspace]
+resolver = "2"
+members = ["crates/facile-core", "crates/facile", "crates/facile-client"]
+# The website is a Facile application, not a crate: `facile serve site`.
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/maxlestage/Facile"
+homepage = "https://github.com/maxlestage/Facile"
+authors = ["Maxime Nathan Lestage"]
+
+[workspace.dependencies]
+# The branch adds what an embedding program needs (the checker knows the
+# fields of `db` and `mw`); it becomes `master` once merged.
+rythme = { git = "https://github.com/maxlestage/Rythme", branch = "claude/rythme-framework-3d-site-odfjcn" }
+serde_json = { version = "1", features = ["preserve_order"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+# The WebAssembly of the browser: small, without unwinding.
+# `cargo build -p facile-client --target wasm32-unknown-unknown --profile wasm`
+[profile.wasm]
+inherits = "release"
+opt-level = "s"
+panic = "abort"
+strip = true

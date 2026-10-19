@@ -1,0 +1,46 @@
+# Tâches: an application written in Rythme with Facile.
+#   facile dev examples/taches     http://localhost:3000
+
+use client/compteur
+use client/liste
+
+## The tasks, kept in the database (DATABASE_URL, memory:// by default).
+taches = model("taches", {
+  titre: field(:text, {required: true, max: 120}),
+  fait: field(:bool, {default: false}),
+})
+
+fn accueil(req) = page({
+  title: "Tâches · Facile",
+  description: "Une liste de tâches écrite en Rythme : le serveur, l'API et les composants du navigateur.",
+  lang: "fr",
+  css: ["/static/style.css"],
+}, [
+  main([
+    h1("Mes tâches"),
+    p({class: "intro"}, ["La liste vit dans le navigateur (Rythme compilé en WebAssembly) et parle à l'API REST du serveur."]),
+    island(liste.component, {}),
+    h2("Un compteur"),
+    island(compteur.component, {depart: 3}),
+  ]),
+])
+
+## The tasks still to do, as JSON, read straight from the database.
+fn a_faire(req) = taches |> where(:fait, false) |> order_by(:id, :desc) |> db.all
+
+fn remplir() = if db.count(taches) > 0
+  then Ok([])
+  else db.insert_all(taches, [
+    {titre: "Lire le guide de Facile"},
+    {titre: "Écrire une page en Rythme"},
+    {titre: "Déployer sur Heroku", fait: false},
+  ])
+
+app("Tâches")
+  |> models([taches])
+  |> resource("/api/taches", taches)
+  |> on_get("/", accueil)
+  |> on_get("/a-faire", a_faire)
+  |> assets("/static", "public")
+  |> middleware(mw.shield())
+  |> on_start(remplir)
