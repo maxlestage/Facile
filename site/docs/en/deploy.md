@@ -27,6 +27,17 @@ git push heroku main
 
 Heroku gives `PORT` and `DATABASE_URL`; Facile connects to PostgreSQL over TLS and creates the tables at startup. Behind Heroku's router, `req.ip()` reads `X-Forwarded-For` and `mw.https()` redirects to HTTPS.
 
+With the Rust buildpack (`emk/rust`) instead of the container stack, Facile's repository shows the setup for its own site: `RustConfig` skips the default build and runs `heroku-build.sh`, which builds the `facile` command into `bin/`, and the `Procfile` serves the application:
+
+```sh
+heroku buildpacks:set emk/rust
+heroku stack:set heroku-24
+```
+
+```text
+web: exec bin/facile serve site
+```
+
 ## Environment variables
 
 | Variable | Effect |

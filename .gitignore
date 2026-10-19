@@ -6,3 +6,4 @@
 # A local [patch] to work on Rythme beside Facile.
 /.cargo/config.toml
 node_modules/
+/bin

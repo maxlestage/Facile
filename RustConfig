@@ -1,0 +1,13 @@
+# Heroku with the emk/rust buildpack
+# (https://elements.heroku.com/buildpacks/emk/heroku-buildpack-rust): the site of
+# Facile, served by Facile itself. heroku.yml (the "container" stack, with the
+# Dockerfile) remains the other way to deploy it.
+#
+# The buildpack sources this file, installs Rust, then would run a plain `cargo
+# build --release` at the root, which builds the whole workspace and only copies
+# the binaries of target/release from its cache. That build is skipped:
+# heroku-build.sh builds the `facile` command (the WebAssembly of the browser is
+# already in crates/facile/assets) and puts it in bin/.
+VERSION=stable
+RUST_SKIP_BUILD=1
+trap 'status=$?; if [ "$status" -eq 0 ]; then ENV_DIR="$ENV_DIR" bash "$BUILD_DIR/heroku-build.sh" || exit 1; fi' EXIT
