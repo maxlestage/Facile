@@ -1,0 +1,16 @@
+# client/compteur.ry : vit dans le navigateur.
+
+fn init(props) = {n: props.depart}
+
+fn update(etat, message) = match message
+  :plus -> {..etat, n: etat.n + 1}
+  :moins -> {..etat, n: etat.n - 1}
+end
+
+fn view(etat) = div({class: "compteur"}, [
+  button({on_click: :moins}, ["−"]),
+  strong([etat.n]),
+  button({on_click: :plus}, ["+"]),
+])
+
+component = {name: "compteur", init, update, view}

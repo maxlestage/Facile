@@ -1,0 +1,37 @@
+# Rythme in the browser: the code is run by the interpreter compiled to
+# WebAssembly, apart from the page (`evaluate`), and its output is shown.
+
+exemples = [
+  ["Fizzbuzz", "fn fizzbuzz(n) = match [n % 3, n % 5]\n  [0, 0] -> \"FizzBuzz\"\n  [0, _] -> \"Fizz\"\n  [_, 0] -> \"Buzz\"\n  _ -> text(n)\nend\n\n1..15 |> map(fizzbuzz) |> join(\" \") |> print"],
+  ["Ruby", "noms = [\"Ada\", \"Grace\", \"Alan\"]\nnoms.each do |nom|\n  puts \"Bonjour, #\{nom} !\"\nend\nputs [1, 2, 3, 4].select(even?).map \{ |x| x * x }.sum"],
+  ["Types", "type Forme = Cercle(r) | Carre(c)\n\nfn aire(Cercle(r)) = pi * r * r\nfn aire(Carre(c)) = c * c\n\n[Cercle(1), Carre(3)] |> map(aire) |> print"],
+  ["Erreur", "print(\"âge : \" + 36)"],
+]
+
+fn init(props) = {code: props.code, sortie: None}
+
+fn update(etat, message) = match message
+  [:code, texte] -> {..etat, code: texte}
+  [:exemple, texte] -> {code: texte, sortie: None}
+  :lancer -> {..etat, sortie: Some(evaluate(etat.code))}
+end
+
+fn sortie(etat) = match etat.sortie
+  None -> pre({class: "sortie"}, ["▶ Lancer pour voir le résultat"])
+  Some(r) -> if r.ok
+    then pre({class: "sortie"}, [if r.output == "" then "(rien d'affiché)" else r.output])
+    else pre({class: "sortie erreur"}, [r.output, r.errors])
+end
+
+fn saisie(texte) = [:code, texte]
+
+fn view(etat) = div({class: "essai"}, [
+  h("textarea", {spellcheck: "false", "aria-label": "Code Rythme", on_input: saisie, value: etat.code}, [etat.code]),
+  div({class: "actions"}, [
+    button({class: "lancer", on_click: :lancer}, ["▶ Lancer"]),
+    ..exemples.map { |[nom, code]| button({class: "exemple", on_click: [:exemple, code]}, [nom]) },
+  ]),
+  sortie(etat),
+])
+
+component = {name: "essai", init, update, view}

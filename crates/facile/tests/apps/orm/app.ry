@@ -1,0 +1,141 @@
+# Everything the ORM does, checked with assert_eq on whichever database
+# DATABASE_URL names (tests/orm.rs runs it on memory://, SQLite, PostgreSQL).
+
+projets = model("projets", {
+  nom: field(:text, {required: true, unique: true, max: 40}),
+  taches: has_many("taches", :projet),
+})
+
+taches = model("taches", {
+  titre: field(:text, {required: true, min: 2}),
+  fait: field(:bool, {default: false}),
+  priorite: field(:int, {default: 1, min: 1, max: 5}),
+  poids: :float,
+  echeance: :date,
+  etiquettes: :json,
+  courriel: field(:text, {email: true}),
+  statut: field(:text, {one_of: ["ouverte", "fermee"], default: "ouverte"}),
+  projet: belongs_to("projets"),
+})
+
+fn ok(r) = match r
+  Ok(v) -> v
+  Err(e) -> fail("expected Ok, got Err: {e}")
+end
+
+fn scenario(req) = db.transaction do
+  # Clean slate, whatever ran before.
+  db.delete_where(taches)
+  db.delete_where(projets)
+
+  web = ok(db.insert(projets, {nom: "Site web"}))
+  app = ok(db.insert(projets, {nom: "Application"}))
+  assert_eq(db.count(projets), 2)
+
+  # Rules of the fields.
+  match db.insert(projets, {nom: "Site web"})
+    Err(e) -> assert_eq(e.status, 422)
+    Ok(_) -> fail("a unique name was accepted twice")
+  end
+  match db.insert(taches, {titre: "x", priorite: 9, courriel: "pas-un-mail", statut: "perdue", inconnu: 1})
+    Err(e) -> do
+      assert_eq(e.status, 422)
+      assert(has(e.fields, "titre"), "titre too short")
+      assert(has(e.fields, "priorite"), "priorite above max")
+      assert(has(e.fields, "courriel"), "not an email")
+      assert(has(e.fields, "statut"), "not one of")
+      assert(has(e.fields, "inconnu"), "unknown field")
+    end
+    Ok(_) -> fail("an invalid task was accepted")
+  end
+
+  t1 = ok(db.insert(taches, {titre: "Maquette", projet: web, priorite: 3, poids: 1.5, etiquettes: ["design", "ui"], echeance: "2026-11-01"}))
+  t2 = ok(db.insert(taches, {titre: "Serveur", projet_id: web.id, priorite: 5, courriel: "ada@exemple.fr"}))
+  t3 = ok(db.insert(taches, {titre: "Tests", projet: app, fait: true}))
+  ok(db.insert_all(taches, [{titre: "Doc", priorite: 2}, {titre: "Logo", priorite: 4, projet: web}]))
+
+  # Defaults, kinds, JSON.
+  assert_eq(t1.fait, false)
+  assert_eq(t3.priorite, 1)
+  assert_eq(t1.poids, 1.5)
+  assert_eq(t1.etiquettes, ["design", "ui"])
+  assert_eq(t1.statut, "ouverte")
+  assert_eq(t2.poids, None)
+  assert(len(t1.created_at) == 20, "a timestamp")
+
+  # Queries.
+  assert_eq(db.count(taches), 5)
+  assert_eq(taches |> where(:fait, false) |> db.count, 4)
+  assert_eq(taches |> where(:priorite, ">=", 3) |> order_by(:priorite, :desc) |> db.all |> map(fn(t) = t.titre), ["Serveur", "Logo", "Maquette"])
+  assert_eq(taches |> where(:titre, :contains, "er") |> order_by(:titre) |> db.all |> map(fn(t) = t.titre), ["Serveur"])
+  assert_eq(taches |> where(:titre, :starts_with, "do") |> db.count, 1)
+  assert_eq(taches |> where(:priorite, :in, [2, 4]) |> db.count, 2)
+  assert_eq(taches |> where(:poids, None) |> db.count, 4)
+  assert_eq(taches |> where_any([[:priorite, 5], [:fait, true]]) |> db.count, 2)
+  assert_eq(taches |> search([:titre, :courriel], "ADA") |> db.count, 1)
+  assert_eq(taches |> order_by(:priorite) |> order_by(:titre) |> limit(2) |> offset(1) |> db.all |> map(fn(t) = t.titre), ["Doc", "Maquette"])
+  assert_eq(taches |> order_by(:id) |> db.first |> map(fn(t) = t.titre), Some("Maquette"))
+  assert_eq(db.find(taches, t2.id) |> map(fn(t) = t.titre), Some("Serveur"))
+  assert_eq(db.find(taches, 999999), None)
+  assert_eq(taches |> pick([:titre]) |> where(:id, t1.id) |> db.all, [{titre: "Maquette"}])
+
+  # Aggregates.
+  assert_eq(db.sum(taches, :priorite), Some(15))
+  assert_eq(db.max(taches, :priorite), Some(5))
+  assert_eq(db.min(taches |> where(:projet_id, web.id), :priorite), Some(3))
+  assert_eq(db.avg(taches |> where(:titre, :in, ["Maquette", "Serveur"]), :priorite), Some(4.0))
+  assert(db.exists(taches |> where(:fait, true)), "exists")
+  assert_eq(get(db.count_by(taches, :fait), true), Some(1))
+
+  # Relations, in one query each.
+  avec = taches |> include(:projet) |> where(:id, t1.id) |> db.first
+  assert_eq(avec |> map(fn(t) = t.projet |> map(fn(p) = p.nom)), Some(Some("Site web")))
+  sans = taches |> include(:projet) |> where(:titre, "Doc") |> db.first
+  assert_eq(sans |> map(fn(t) = t.projet), Some(None))
+  liste = projets |> include(:taches) |> order_by(:nom) |> db.all
+  assert_eq(liste |> map(fn(p) = [p.nom, len(p.taches)]), [["Application", 1], ["Site web", 3]])
+
+  # Changes.
+  t2b = ok(db.update(taches, t2.id, {fait: true, priorite: 4}))
+  assert_eq([t2b.fait, t2b.priorite, t2b.titre], [true, 4, "Serveur"])
+  match db.update(taches, t2.id, {priorite: 0})
+    Err(e) -> assert_eq(e.status, 422)
+    Ok(_) -> fail("priorite below min accepted")
+  end
+  assert_eq(db.update(taches, 999999, {fait: true}), Err(:not_found))
+  assert_eq(ok(db.update_where(taches |> where(:projet_id, web.id), {statut: "fermee"})), 3)
+  assert_eq(taches |> where(:statut, "fermee") |> db.count, 3)
+  saved = ok(db.save(taches, {..t1, titre: "Maquette v2"}))
+  assert_eq([saved.id, saved.titre], [t1.id, "Maquette v2"])
+  nouveau = ok(db.save(taches, {titre: "Nouvelle"}))
+  assert(nouveau.id > t1.id, "save inserts without id")
+
+  # Pages.
+  p = db.paginate(taches |> order_by(:id), 2, 2)
+  assert_eq([p.page, p.per_page, p.total, p.pages, len(p.items)], [2, 2, 6, 3, 2])
+
+  # Deletions.
+  assert(db.delete(taches, t3.id), "deleted")
+  assert(not db.delete(taches, t3.id), "already deleted")
+  assert_eq(db.delete_where(taches |> where(:priorite, :in, [2])), 1)
+  assert_eq(db.count(taches), 4)
+
+  # A transaction undone by Err keeps nothing.
+  r = db.transaction do
+    db.insert(taches, {titre: "Fantôme"})
+    Err(:annule)
+  end
+  assert_eq(r, Err(:annule))
+  assert_eq(taches |> where(:titre, "Fantôme") |> db.count, 0)
+
+  assert_eq(db.validate(taches, {titre: "ok"}), Ok({titre: "ok"}))
+  Ok("ok")
+end
+
+fn brut(req) = db.sql("SELECT COUNT(*) AS n FROM taches WHERE priorite >= ?", [1])
+
+app("ORM")
+  |> models([projets, taches])
+  |> on_get("/scenario", scenario)
+  |> on_get("/sql", brut)
+  |> resource("/api/taches", taches)

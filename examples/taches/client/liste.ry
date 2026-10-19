@@ -1,0 +1,44 @@
+# The list of tasks: it reads and writes them through the REST API.
+
+type Message = Chargees(resultat) | Saisie(texte) | Ajouter | Ajoutee(resultat) | Basculer(tache) | Basculee(resultat)
+
+fn init(props) = with_effects({taches: [], saisie: "", erreur: None}, [fetch_json("/api/taches?order=-id", Chargees)])
+
+fn update(etat, message) = match message
+  Chargees(Ok(taches)) -> {..etat, taches: taches}
+  Saisie(texte) -> {..etat, saisie: texte}
+  Ajouter -> ajouter(etat)
+  Ajoutee(Ok(tache)) -> {..etat, taches: [tache, ..etat.taches], erreur: None}
+  Basculer(tache) -> with_effects(etat, [send_json(:patch, "/api/taches/{tache.id}", {fait: not tache.fait}, Basculee)])
+  Basculee(Ok(tache)) -> {..etat, taches: etat.taches.map { |t| if t.id == tache.id then tache else t }}
+  Chargees(Err(e)) -> {..etat, erreur: Some(e)}
+  Ajoutee(Err(e)) -> {..etat, erreur: Some(e)}
+  Basculee(Err(e)) -> {..etat, erreur: Some(e)}
+end
+
+fn ajouter(etat) = if trim(etat.saisie) == ""
+  then etat
+  else with_effects({..etat, saisie: ""}, [send_json(:post, "/api/taches", {titre: trim(etat.saisie)}, Ajoutee)])
+
+fn ligne(tache) = li({class: if tache.fait then "fait" else ""}, [
+  label([h("input", {type: "checkbox", checked: tache.fait, on_change: Basculer(tache)}), " ", tache.titre]),
+])
+
+fn erreur(etat) = match etat.erreur
+  Some(e) -> p({class: "erreur", role: "alert"}, [e])
+  None -> ()
+end
+
+fn restantes(etat) = etat.taches.reject { |t| t.fait }.size
+
+fn view(etat) = section({class: "liste"}, [
+  form({on_submit: Ajouter, class: "ajout"}, [
+    h("input", {name: "titre", value: etat.saisie, placeholder: "Une tâche…", on_input: Saisie, "aria-label": "Nouvelle tâche"}),
+    button({type: "submit"}, ["Ajouter"]),
+  ]),
+  erreur(etat),
+  ul(etat.taches.map(ligne)),
+  p({class: "compte"}, ["{restantes(etat)} à faire sur {etat.taches.size}"]),
+])
+
+component = {name: "liste", init, update, view}

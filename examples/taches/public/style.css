@@ -1,0 +1,11 @@
+main { max-width: 40rem; }
+.intro { color: var(--f-muted); }
+.ajout { display: flex; gap: 0.5rem; margin: 1rem 0; }
+.ajout input { flex: 1; }
+.liste ul { list-style: none; padding: 0; }
+.liste li { padding: 0.5rem 0.2rem; border-bottom: 1px solid var(--f-line); }
+.liste li.fait { color: var(--f-muted); text-decoration: line-through; }
+.erreur { color: #d33; }
+.compteur { display: flex; align-items: center; gap: 0.8rem; }
+.compteur .valeur { font-size: 2rem; min-width: 3ch; text-align: center; }
+.discret { background: transparent; color: var(--f-accent); border: 1px solid var(--f-line); }
