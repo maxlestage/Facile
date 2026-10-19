@@ -224,6 +224,17 @@ if (fine && !reduced) {
   }
 }
 
+// ----- the menu of the docs: folded on phones, open beside the text --------
+
+const wide = matchMedia("(min-width: 861px)");
+for (const d of $$(".docs-nav details")) {
+  const fit = () => (d.open = wide.matches);
+  fit();
+  wide.addEventListener("change", fit);
+  // On larger screens the summary is only a title: the menu stays open.
+  d.addEventListener("toggle", () => { if (wide.matches && !d.open) d.open = true; });
+}
+
 // ----- the table of contents of the docs follows the reading ---------------
 
 const tocLinks = $$(".toc a[href^='#']");

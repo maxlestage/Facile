@@ -29,10 +29,12 @@ fn _texte(lang, slug) = get(if lang == "en" then textes_en else textes_fr, slug)
 
 fn _titre(lang, [_, fr, en]) = if lang == "en" then en else fr
 
-fn _menu(lang, actuel) = nav({class: "docs-nav", "aria-label": textes.textes(lang).docs_titre}, [
-  h4([textes.textes(lang).docs_titre]),
+## On phones the menu folds into a <details> (site.js closes it there); on
+## larger screens it stays open beside the text.
+fn _menu(lang, actuel) = nav({class: "docs-nav", "aria-label": textes.textes(lang).docs_titre}, [h("details", {open: true}, [
+  h("summary", [h4([textes.textes(lang).docs_titre]), span({class: "courant"}, [_titre(lang, unwrap_or(sujets.find { |s| s[0] == actuel }, sujets[0]))])]),
   ul(sujets.map { |s| li([a({href: textes.lien(lang, "/docs/{s[0]}"), "aria-current": if s[0] == actuel then "page" else ()}, [_titre(lang, s)])]) }),
-])
+])])
 
 fn _sommaire(lang, md) = nav({class: "toc", "aria-label": textes.textes(lang).sur_page}, [
   h4([textes.textes(lang).sur_page]),
