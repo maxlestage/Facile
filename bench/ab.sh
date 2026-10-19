@@ -3,7 +3,7 @@
 rounds=$1; path=$2; script=$3
 : > /tmp/claude-0/ab.txt
 for i in $(seq $rounds); do
-  PID=$(pgrep -f examples/bench | head -1) ./measure.sh vitesse 3000 $path $script >> /tmp/claude-0/ab.txt
+  PID=$(pgrep -x bench | head -1) ./measure.sh vitesse 3000 $path $script >> /tmp/claude-0/ab.txt
   PID=$(pgrep -x ${FACILE_PROC:-hello_engine} | head -1) ./measure.sh facile 3100 $path $script >> /tmp/claude-0/ab.txt
 done
 for n in vitesse facile; do

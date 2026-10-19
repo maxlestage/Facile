@@ -1,0 +1,17 @@
+use client/compteur
+
+taches = model("taches", {
+  titre: field(:text, {required: true, max: 120}),
+  fait: field(:bool, {default: false}),
+})
+
+fn accueil(req) = page({title: "Mes tâches"}, [
+  h1("Bonjour 👋"),
+  island(compteur.component, {depart: 0}),
+])
+
+app("Tâches")
+  |> models([taches])
+  |> resource("/api/taches", taches)
+  |> on_get("/", accueil)
+  |> middleware(mw.shield())

@@ -34,7 +34,7 @@ pub fn was_impure() -> bool {
 /// A host function, with its documentation.
 #[macro_export]
 macro_rules! host {
-    ($name:literal, $sig:literal, $min:expr, $max:expr, $f:path, $en:literal, $fr:literal) => {
+    ($name:literal, $sig:literal, $min:expr, $max:expr, $f:path, $en:literal, $fr:literal $(,)?) => {
         rythme::builtins::Builtin {
             name: $name,
             sig: $sig,

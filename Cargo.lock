@@ -311,6 +311,7 @@ dependencies = [
 name = "facile-core"
 version = "0.1.0"
 dependencies = [
+ "rustc-hash",
  "rythme",
  "serde",
  "serde_json",

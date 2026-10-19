@@ -1,0 +1,16 @@
+# A component: computed on the server, then alive in the browser.
+
+fn init(props) = {n: props.depart}
+
+fn update(etat, message) = match message
+  :plus -> {..etat, n: etat.n + 1}
+  :moins -> {..etat, n: etat.n - 1}
+end
+
+fn view(etat) = div({class: "compteur"}, [
+  button({on_click: :moins, "aria-label": "moins"}, ["−"]),
+  strong([etat.n]),
+  button({on_click: :plus, "aria-label": "plus"}, ["+"]),
+])
+
+component = {name: "compteur", init, update, view}

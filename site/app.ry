@@ -1,0 +1,87 @@
+# The site of Facile, written in Rythme and served by Facile.
+#   facile dev site        http://localhost:3000
+
+use textes
+use accueil
+use documentation
+use pages
+
+## The addresses given to the newsletter.
+abonnes = model("abonnes", {
+  email: field(:text, {required: true, email: true, unique: true, max: 200}),
+  lang: field(:text, {one_of: ["fr", "en"], default: "fr"}),
+})
+
+fn _accueil(lang) = fn(req) = accueil.page_accueil(lang)
+
+fn _doc(lang) = fn(req) = match documentation.page_doc(lang, req.params.sujet)
+  Some(p) -> p
+  None -> pages.introuvable(lang)
+end
+
+fn _page(f, lang) = fn(req) = f(lang)
+
+fn inscrire(req) = do
+  champs = req.form()
+  lang = if get(champs, "lang") == Some("en") then "en" else "fr"
+  t = textes.textes(lang)
+  match db.insert(abonnes, {email: unwrap_or(get(champs, "email"), ""), lang})
+    Ok(_) -> pages.merci(lang, t.newsletter_merci, true)
+    Err(e) -> if has(e.fields, "email") and e.fields.email == "is already taken" or get(e.fields, "email") == Some("est déjà pris")
+      then pages.merci(lang, t.newsletter_deja, true)
+      else pages.merci(lang, t.newsletter_erreur, false) |> status(422)
+  end
+end
+
+## The 404 page, in the language of the path.
+fn introuvable(req) = pages.introuvable(if starts_with(req.path, "/en/") then "en" else "fr")
+
+fn robots(req) = "User-agent: *\nAllow: /\nSitemap: {textes.site_url}/sitemap.xml\n"
+
+chemins = ["/", "/benchmark", "/legal", "/privacy", ..documentation.sujets.map { |s| "/docs/{s[0]}" }]
+
+fn sitemap(req) = do
+  urls = chemins.flat_map { |c| [textes.lien("fr", c), textes.lien("en", c)] }
+  corps = urls.map { |u| "  <url><loc>{textes.site_url}{u}</loc></url>" }.join("\n")
+  "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n{corps}\n</urlset>\n"
+    |> with_header("content-type", "application/xml")
+end
+
+fn manifeste(req) = json({
+  name: "Facile",
+  short_name: "Facile",
+  description: textes.fr.description,
+  start_url: "/",
+  display: "standalone",
+  background_color: "#07070d",
+  theme_color: "#07070d",
+  icons: [{src: "/static/img/favicon.svg", sizes: "any", type: "image/svg+xml"}],
+}) |> with_header("content-type", "application/manifest+json")
+
+fn sante(req) = {status: "ok", framework: "Facile", langage: "Rythme"}
+
+app("Le site de Facile")
+  |> settings({lang: "fr"})
+  |> models([abonnes])
+  |> on_get("/", _accueil("fr"))
+  |> on_get("/en", _accueil("en"))
+  |> on_get("/en/", _accueil("en"))
+  |> on_get("/docs", fn(req) = redirect("/docs/start", 301))
+  |> on_get("/en/docs", fn(req) = redirect("/en/docs/start", 301))
+  |> on_get("/docs/:sujet", _doc("fr"))
+  |> on_get("/en/docs/:sujet", _doc("en"))
+  |> on_get("/benchmark", _page(pages.benchmark, "fr"))
+  |> on_get("/en/benchmark", _page(pages.benchmark, "en"))
+  |> on_get("/legal", _page(pages.mentions, "fr"))
+  |> on_get("/en/legal", _page(pages.mentions, "en"))
+  |> on_get("/privacy", _page(pages.vie_privee, "fr"))
+  |> on_get("/en/privacy", _page(pages.vie_privee, "en"))
+  |> on_post("/newsletter", inscrire)
+  |> on_get("/robots.txt", robots)
+  |> on_get("/sitemap.xml", sitemap)
+  |> on_get("/manifest.webmanifest", manifeste)
+  |> on_get("/health", sante)
+  |> not_found(introuvable)
+  |> assets("/static", "public")
+  |> middleware(mw.shield())
+  |> middleware(mw.cache_control("public, max-age=300"))

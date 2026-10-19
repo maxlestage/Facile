@@ -10,7 +10,7 @@
 //! fn a_faire() = taches |> where(:fait, false) |> order_by(:created_at, :desc) |> db.all
 //! ```
 
-use std::cell::{Cell as StdCell, RefCell};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -335,7 +335,6 @@ fn pick(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
 
 thread_local! {
     static SHAPES: RefCell<HashMap<String, Rc<Shape>>> = RefCell::new(HashMap::new());
-    static DEPTH: StdCell<usize> = const { StdCell::new(0) };
 }
 
 fn shape_of(m: &Model) -> Rc<Shape> {
@@ -761,7 +760,11 @@ fn aggregate(it: &mut Interp, a: &[Value], span: Span, func: &str) -> Fallible<V
     Ok(match (func, c) {
         ("count", Cell::Int(n)) => Value::Int(n),
         ("count", _) => Value::Int(0),
-        (_, c) => aggregate_value(it, c),
+        (_, Cell::Null) => it.none(),
+        (_, c) => {
+            let v = aggregate_value(it, c);
+            it.some(v)
+        }
     })
 }
 
@@ -978,15 +981,9 @@ fn db_paginate(it: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
 fn db_transaction(it: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
     mark_impure();
     let f = func_arg(a, 0, "db.transaction", span)?.clone();
-    let depth = DEPTH.with(|d| d.get());
-    if depth > 0 {
-        // Inside another transaction: part of it.
-        return it.call(f, vec![], span);
-    }
+    // Inside another transaction, a savepoint: undone alone, kept with the other.
     super::begin().map_err(|e| error("db.transaction", e, span))?;
-    DEPTH.with(|d| d.set(1));
     let out = it.call(f, vec![], span);
-    DEPTH.with(|d| d.set(0));
     let commit = matches!(&out, Ok(v) if variant_name(v).as_deref() != Some("Err"));
     super::finish(commit).map_err(|e| error("db.transaction", e, span))?;
     out
@@ -1114,12 +1111,36 @@ pub static DB: &[Builtin] =
             2,
             2,
             db_sum,
-            "The sum of a field (`None` without rows).",
-            "La somme d'un champ (`None` sans lignes)."
+            "The sum of a field: `Some(n)`, or `None` without rows.",
+            "La somme d'un champ : `Some(n)`, ou `None` sans lignes.",
         ),
-        host!("avg", "db.avg(query, field)", 2, 2, db_avg, "The average of a field.", "La moyenne d'un champ."),
-        host!("min", "db.min(query, field)", 2, 2, db_min, "The smallest value of a field.", "La plus petite valeur d'un champ."),
-        host!("max", "db.max(query, field)", 2, 2, db_max, "The largest value of a field.", "La plus grande valeur d'un champ."),
+        host!(
+            "avg",
+            "db.avg(query, field)",
+            2,
+            2,
+            db_avg,
+            "The average of a field: `Some(x)` or `None`.",
+            "La moyenne d'un champ : `Some(x)` ou `None`."
+        ),
+        host!(
+            "min",
+            "db.min(query, field)",
+            2,
+            2,
+            db_min,
+            "The smallest value: `Some(x)` or `None`.",
+            "La plus petite valeur : `Some(x)` ou `None`."
+        ),
+        host!(
+            "max",
+            "db.max(query, field)",
+            2,
+            2,
+            db_max,
+            "The largest value: `Some(x)` or `None`.",
+            "La plus grande valeur : `Some(x)` ou `None`."
+        ),
         host!(
             "count_by",
             "db.count_by(query, field)",

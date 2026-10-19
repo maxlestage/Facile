@@ -1,0 +1,222 @@
+# The home page: what Facile is, shown with depth.
+
+use textes
+use icones
+use mise_en_page
+use performances
+use client/compteur
+use client/essai
+
+## The code shown in the window of the home page (read once, when the site starts).
+fn _fichier(chemin) = unwrap_or(read_file(chemin), "")
+
+code_app = _fichier("exemples/app.ry")
+code_compteur = _fichier("exemples/compteur.ry")
+code_modele = _fichier("exemples/modele.ry")
+code_middleware = _fichier("exemples/middleware.ry")
+
+fn icone(nom) = match nom
+  "eclair" -> icones.eclair
+  "couches" -> icones.couches
+  "base" -> icones.base
+  "puce" -> icones.puce
+  "bouclier" -> icones.bouclier
+  "loupe" -> icones.loupe
+  "fusee" -> icones.fusee
+  "memoire" -> icones.memoire
+  _ -> icones.code
+end
+
+fn _intro(eyebrow, titre, lead, classe) = div({class: classe}, [
+  span({class: "eyebrow", "data-reveal": 0}, [eyebrow]),
+  h2({class: "section-title", "data-reveal": 1}, [titre]),
+  p({class: "section-lead", "data-reveal": 2}, [lead]),
+])
+
+fn heros(t, lang) = section({class: "hero", "aria-labelledby": "titre-heros"}, [
+  canvas({"data-scene": "hero", "aria-hidden": "true"}),
+  div({class: "wrap"}, [
+    div({class: "hero-inner"}, [
+      span({class: "badge", "data-reveal": 0}, [h("b", [t.badge]), t.badge_texte]),
+      h1({id: "titre-heros", "data-reveal": 1}, [span({class: "line"}, [t.hero_1]), span({class: "line gradient-text"}, [t.hero_2])]),
+      p({class: "lead", "data-reveal": 2}, [raw(t.hero_lead)]),
+      div({class: "cta", "data-reveal": 3}, [
+        a({class: "btn btn-primary", href: textes.lien(lang, "/docs/start"), "data-magnetic": true}, [t.lire_guide, icones.fleche]),
+        a({class: "btn", href: mise_en_page.depot, rel: "noopener"}, [icones.github, t.voir_code]),
+      ]),
+      div({class: "terminal", "data-reveal": 4, "data-copy": "cargo install --git https://github.com/maxlestage/Facile facile\nfacile new mon-app && facile dev mon-app"}, [
+        div([span({class: "prompt"}, ["$ "]), span({class: "cmd"}, ["cargo install --git …/Facile facile"])]),
+        div([span({class: "prompt"}, ["$ "]), span({class: "cmd"}, ["facile new mon-app && facile dev mon-app"])]),
+        div({class: "comment"}, ["→ http://localhost:3000"]),
+      ]),
+      div({class: "stats", "data-reveal": 5}, [
+        div({class: "stat"}, [strong([span({"data-count": performances.pipeline_millions, "data-decimals": 1}, [text(performances.pipeline_millions)]), " M"]), span([t.stat_pipeline])]),
+        div({class: "stat"}, [strong([span({"data-count": performances.cache_ns}, [text(performances.cache_ns)]), " ns"]), span([t.stat_cache])]),
+        div({class: "stat"}, [strong(["0"]), span([t.stat_js])]),
+      ]),
+    ]),
+  ]),
+  div({class: "scroll-hint", "aria-hidden": "true"}),
+])
+
+fn _onglet(i, nom) = button({role: "tab", type: "button", id: "onglet-{i}", "aria-controls": "panneau-{i}"}, [nom])
+
+fn _panneau(i, source) = div({role: "tabpanel", id: "panneau-{i}", "aria-labelledby": "onglet-{i}"}, [pre({class: "code"}, [code([highlight(source)])])])
+
+fn vitrine(t) = section({class: "section", id: "code"}, [
+  div({class: "wrap showcase"}, [
+    div([
+      _intro(t.code_eyebrow, t.code_titre, t.code_lead, ""),
+      ul({class: "face-list"}, t.code_points.enumerate.map { |[i, [titre, texte]]| li({"data-reveal": i + 3}, [div({class: "card", style: {padding: "1rem 1.2rem"}}, [h3({style: {"font-size": "1rem"}}, [titre]), markdown(texte)])]) }),
+    ]),
+    div({class: "window", "data-tilt": 8, "data-tabs": true, "data-reveal": 2}, [
+      div({class: "window-bar"}, [h("i"), h("i"), h("i"), div({class: "tabs", role: "tablist"}, [
+        _onglet(0, "app.ry"), _onglet(1, "client/compteur.ry"), _onglet(2, "modeles.ry"), _onglet(3, "middlewares.ry"),
+      ])]),
+      _panneau(0, code_app),
+      _panneau(1, code_compteur),
+      _panneau(2, code_modele),
+      _panneau(3, code_middleware),
+    ]),
+  ]),
+])
+
+fn fonctionnalites(t) = section({class: "section", id: "fonctionnalites"}, [
+  div({class: "wrap"}, [
+    _intro(t.feat_eyebrow, t.feat_titre, t.feat_lead, "center"),
+    div({class: "grid grid-4"}, t.features.enumerate.map { |[i, [ic, titre, texte]]|
+      article({class: "card", "data-tilt": 12, "data-reveal": i % 4}, [div({class: "icon"}, [icone(ic)]), h3([titre]), markdown(texte)])
+    }),
+  ]),
+])
+
+## The faces of the cube, and the angle that shows each one.
+angles = ["-12,0", "-12,-90", "-12,-180", "-12,90", "-90,0", "90,0"]
+
+fn pile(t) = section({class: "section"}, [
+  div({class: "wrap stack"}, [
+    div({class: "cube-scene", "aria-hidden": "true"}, [
+      div({class: "cube", "data-cube": true}, t.faces.map { |[ic, nom, texte]| div({class: "face"}, [icone(ic), strong([nom]), span([texte])]) }),
+    ]),
+    div([
+      _intro(t.pile_eyebrow, t.pile_titre, t.pile_lead, ""),
+      ul({class: "face-list"}, t.faces.enumerate.map { |[i, [ic, nom, texte]]|
+        li({"data-reveal": i}, [button({type: "button", "data-face": angles[i]}, [span({class: "n"}, ["0{i + 1}"]), div([h("b", [nom]), small([texte])])])])
+      }),
+    ]),
+  ]),
+])
+
+fn _barre(rang, nom, valeur, max, nous) = div({class: if nous then "bar-row us" else "bar-row"}, [
+  span({class: "who"}, [nom]),
+  div({class: "track"}, [div({class: "prism", style: {"--w": "{valeur * 100 / max}%", "--delay": "{rang * 120}ms"}}, [h("i"), h("i"), h("i")])]),
+  span({class: "val"}, [performances.milliers(valeur)]),
+])
+
+fn _groupe(scenario) = do
+  max = scenario.serveurs.map { |[_, v]| v }.max
+  div({class: "bench-group", "data-reveal": 0}, [
+    h3([scenario.nom]),
+    div({class: "bars"}, scenario.serveurs.enumerate.map { |[i, [nom, v]]| _barre(i, nom, v, max, nom == "Facile") }),
+  ])
+end
+
+fn mesures(t, lang) = section({class: "section", id: "performances"}, [
+  div({class: "wrap"}, [
+    _intro(t.perf_eyebrow, t.perf_titre, t.perf_lead, ""),
+    div({class: "bench"}, performances.accueil.map(_groupe)),
+    p({class: "bench-note"}, [t.perf_note, " ", a({href: textes.lien(lang, "/benchmark")}, [t.perf_lien, " →"])]),
+  ]),
+])
+
+fn demos(t) = section({class: "section", id: "essayer"}, [
+  div({class: "wrap"}, [
+    _intro(t.demo_eyebrow, t.demo_titre, t.demo_lead, "center"),
+    div({class: "demos"}, [
+      div({class: "demo", "data-reveal": 0}, [
+        span({class: "live"}, ["WebAssembly"]),
+        h3([t.demo_compteur]),
+        markdown(t.demo_compteur_texte),
+        island(compteur.component, {depart: 0}),
+      ]),
+      div({class: "demo", "data-reveal": 1}, [
+        span({class: "live"}, ["Rythme 1.0"]),
+        h3([t.demo_essai]),
+        p([t.demo_essai_texte]),
+        island(essai.component, {code: essai.exemples[0][1]}),
+      ]),
+    ]),
+  ]),
+])
+
+fn flux(t) = section({class: "section"}, [
+  div({class: "wrap"}, [
+    _intro(t.flux_eyebrow, t.flux_titre, t.flux_lead, "center"),
+    ol({class: "flow"}, t.flux.enumerate.map { |[i, [nom, texte]]| li({class: "step", "data-reveal": i}, [h("b", [nom]), span([texte])]) }),
+  ]),
+])
+
+planetes = [
+  ["Rythme", "le langage", "https://github.com/maxlestage/Rythme"],
+  ["Paquets", "full-stack Rust", "https://github.com/maxlestage/Paquets"],
+  ["Vitesse", "serveur HTTP", "https://github.com/maxlestage/Vitesse"],
+  ["Securite", "middlewares", "https://github.com/maxlestage/Securite"],
+  ["Memoire", "ORM Rust", "https://github.com/maxlestage/Memoire"],
+  ["Active", "front-end Rust", "https://github.com/maxlestage/Active"],
+]
+
+fn ecosysteme(t) = section({class: "section"}, [
+  div({class: "wrap"}, [
+    _intro(t.eco_eyebrow, t.eco_titre, t.eco_lead, "center"),
+    div({class: "orbit-scene", "data-reveal": 1}, [
+      div({class: "orbit"}, [
+        div({class: "core"}, ["Facile"]),
+        ..planetes.enumerate.map { |[i, [nom, role, href]]| div({class: "slot", style: {"--i": i}}, [a({class: "planet", href, rel: "noopener"}, [strong([nom]), span([role])])]) },
+      ]),
+    ]),
+  ]),
+])
+
+fn appel(t, lang) = section({class: "section"}, [
+  div({class: "wrap"}, [
+    div({class: "final", "data-reveal": 0}, [
+      h2([t.final_titre]),
+      p([t.final_texte]),
+      div({class: "terminal", "data-copy": "cargo install --git https://github.com/maxlestage/Facile facile\nfacile new mon-app\nfacile dev mon-app"}, [
+        div([span({class: "prompt"}, ["$ "]), span({class: "cmd"}, ["facile new mon-app"])]),
+        div([span({class: "prompt"}, ["$ "]), span({class: "cmd"}, ["facile dev mon-app"])]),
+        div({class: "comment"}, ["✓ Facile · mon-app · http://localhost:3000"]),
+      ]),
+      div({class: "cta", style: {"justify-content": "center"}}, [
+        a({class: "btn btn-primary", href: textes.lien(lang, "/docs/start"), "data-magnetic": true}, [t.commencer, icones.fleche]),
+        a({class: "btn", href: mise_en_page.depot, rel: "noopener"}, [icones.github, "GitHub"]),
+      ]),
+    ]),
+  ]),
+])
+
+## The page, in a language.
+fn page_accueil(lang) = do
+  t = textes.textes(lang)
+  ld = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "Facile",
+    applicationCategory: "DeveloperApplication",
+    operatingSystem: "Linux, macOS, Windows",
+    description: t.description,
+    offers: {"@type": "Offer", price: "0", priceCurrency: "EUR"},
+    programmingLanguage: "Rythme",
+  }
+  mise_en_page.document(lang, "/", mise_en_page.reglages({json_ld: ld}), [
+    heros(t, lang),
+    vitrine(t),
+    fonctionnalites(t),
+    pile(t),
+    mesures(t, lang),
+    demos(t),
+    flux(t),
+    ecosysteme(t),
+    appel(t, lang),
+  ])
+end

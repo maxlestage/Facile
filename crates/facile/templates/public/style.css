@@ -1,0 +1,4 @@
+main { max-width: 42rem; }
+.compteur { display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; }
+.compteur strong { font-size: 2.2rem; min-width: 3ch; text-align: center; }
+.compteur button { width: 3rem; height: 3rem; justify-content: center; font-size: 1.3rem; }

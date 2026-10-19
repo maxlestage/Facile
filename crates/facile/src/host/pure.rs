@@ -16,12 +16,23 @@ use rythme::symbol::Sym;
 use rythme::value::Value;
 
 macro_rules! impure {
-    ($( $f:ident => $name:literal ),* $(,)?) => {
+    ($( $f:ident => $name:literal $(, $path:literal)? );* $(;)?) => {
         $(
             fn $f(it: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
                 static ORIGINAL: OnceLock<&'static Builtin> = OnceLock::new();
                 mark_impure();
                 let b = ORIGINAL.get_or_init(|| lookup($name).expect($name));
+                $(
+                    // A relative path is read from the application's folder.
+                    let _ = $path;
+                    if let Some(Value::Text(p)) = a.first() {
+                        if !std::path::Path::new(p.as_str()).is_absolute() {
+                            let mut args = a.to_vec();
+                            args[0] = Value::text(&crate::runtime::resolve(p).to_string_lossy());
+                            return (b.func)(it, &args, span);
+                        }
+                    }
+                )?
                 (b.func)(it, a, span)
             }
         )*
@@ -30,12 +41,12 @@ macro_rules! impure {
 }
 
 impure!(
-    print_ => "print", debug_ => "debug", input_ => "input", input_lines_ => "input_lines", args_ => "args",
-    options_ => "options", env_ => "env", time_ => "time", random_ => "random", random_seed_ => "random_seed",
-    shuffle_ => "shuffle", read_file_ => "read_file", write_file_ => "write_file", append_file_ => "append_file",
-    file_exists_ => "file_exists", file_info_ => "file_info", list_folder_ => "list_folder",
-    create_folder_ => "create_folder", delete_file_ => "delete_file", now_ => "now", today_ => "today",
-    sample_ => "sample",
+    print_ => "print"; debug_ => "debug"; input_ => "input"; input_lines_ => "input_lines"; args_ => "args";
+    options_ => "options"; env_ => "env"; time_ => "time"; random_ => "random"; random_seed_ => "random_seed";
+    shuffle_ => "shuffle"; read_file_ => "read_file", "path"; write_file_ => "write_file", "path";
+    append_file_ => "append_file", "path"; file_exists_ => "file_exists", "path"; file_info_ => "file_info", "path";
+    list_folder_ => "list_folder", "path"; create_folder_ => "create_folder", "path"; delete_file_ => "delete_file", "path";
+    now_ => "now"; today_ => "today"; sample_ => "sample";
 );
 
 fn wrapped() -> &'static [Builtin] {

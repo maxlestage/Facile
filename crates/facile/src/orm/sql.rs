@@ -100,8 +100,13 @@ fn aggregate_sql(m: &Model, q: &Query, func: &str, column: &str, d: Dialect) -> 
         sql.ident(column);
     }
     sql.push(")");
-    if func == "avg" && d == Dialect::Postgres {
-        sql.push("::DOUBLE PRECISION");
+    if d == Dialect::Postgres {
+        // AVG and the SUM of BIGINT are NUMERIC, which comes back as a number this way.
+        match (func, m.kind_of(column)) {
+            ("avg", _) | ("sum", Some(Kind::Float)) => sql.push("::DOUBLE PRECISION"),
+            ("sum", _) => sql.push("::BIGINT"),
+            _ => &mut sql,
+        };
     }
     if inner {
         let sub = select_sql(m, q, d);
@@ -411,7 +416,12 @@ mod pg {
         } else {
             tokio_postgres_rustls::MakeRustlsConnect::new(tls_config)
         };
-        let client = Client::connect(url, tls).map_err(|e| format!("PostgreSQL: {e}"))?;
+        // A server on this machine, or `sslmode=disable`: in clear.
+        let local = ["@localhost", "@127.0.0.1", "@[::1]", "host=localhost", "host=/"].iter().any(|h| url.contains(h))
+            && !url.contains("sslmode=require");
+        let client =
+            if url.contains("sslmode=disable") || local { Client::connect(url, postgres::NoTls) } else { Client::connect(url, tls) };
+        let client = client.map_err(|e| format!("PostgreSQL: {e}"))?;
         Ok(Db::Postgres(Box::new(client)))
     }
 

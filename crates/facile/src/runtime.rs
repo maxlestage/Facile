@@ -46,8 +46,24 @@ pub fn production() -> bool {
     global().is_some_and(|g| g.production)
 }
 
+static APP_LANG: OnceLock<String> = OnceLock::new();
+
+/// The language the application asked for (`settings(app, {lang: "fr"})`):
+/// its pages' default `lang`, and the language of Facile's messages.
+pub fn set_app_lang(code: &str) {
+    if let Some(l) = rythme::lang::parse(code) {
+        rythme::lang::set(l);
+    }
+    let _ = APP_LANG.set(code.to_string());
+}
+
 pub fn default_lang() -> String {
-    global().map(|g| g.lang.clone()).unwrap_or_else(|| "fr".into())
+    APP_LANG.get().cloned().or_else(|| global().map(|g| g.lang.clone())).unwrap_or_else(|| "en".into())
+}
+
+thread_local! {
+    /// The folder of the application this thread runs.
+    static ROOT: RefCell<Option<PathBuf>> = const { RefCell::new(None) };
 }
 
 /// A path written in the application, from the application's folder.
@@ -55,6 +71,9 @@ pub fn resolve(path: &str) -> PathBuf {
     let p = Path::new(path);
     if p.is_absolute() {
         return p.to_path_buf();
+    }
+    if let Some(root) = ROOT.with(|r| r.borrow().clone()) {
+        return root.join(p);
     }
     match global() {
         Some(g) => g.root.join(p),
@@ -149,6 +168,8 @@ impl Runtime {
     }
 
     fn load_inner(entry: &Path) -> Result<Runtime, LoadError> {
+        let folder = entry.parent().map(|p| if p.as_os_str().is_empty() { Path::new(".") } else { p }).map(Path::to_path_buf);
+        ROOT.with(|r| *r.borrow_mut() = folder.map(|f| f.canonicalize().unwrap_or(f)));
         let mut driver = Driver::new();
         crate::host::install(&mut driver.interp);
         let Some(module) = driver.load_file(entry) else {
@@ -233,8 +254,8 @@ impl Runtime {
         })
     }
 
-    /// Opens the database and creates the tables of the models; with `first`,
-    /// runs the `on_start` functions too (once for the whole server).
+    /// Opens the database; with `first` (once for the whole server, before
+    /// the workers), creates the tables of the models and runs `on_start`.
     pub fn start(&mut self, first: bool) -> Result<(), String> {
         let url = std::env::var("DATABASE_URL").ok().filter(|u| !u.is_empty()).or_else(|| self.settings.database.clone());
         crate::orm::open(url.as_deref().unwrap_or("memory://"))?;

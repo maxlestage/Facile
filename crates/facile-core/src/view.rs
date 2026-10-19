@@ -187,6 +187,8 @@ pub static VIEW: &[Builtin] = &[
 pub fn define(it: &mut Interp) {
     util::define(it, TAGS);
     util::define(it, VIEW);
+    util::define(it, crate::markdown::MARKDOWN);
+    util::define(it, crate::evaluate::EVALUATE);
     crate::effects::define(it);
 }
 
