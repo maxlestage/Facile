@@ -116,10 +116,6 @@ node tests/browser/islands.cjs http://localhost:3300         # les îlots dans C
 facile dev site                              # le site, http://localhost:3000
 ```
 
-Facile dépend de la branche `claude/rythme-framework-3d-site-odfjcn` de Rythme, qui apprend au
-vérificateur de Rythme les champs des enregistrements donnés par un programme hôte (`db`, `mw`) ;
-elle deviendra `master` une fois fusionnée.
-
 ## Licence
 
 MIT.

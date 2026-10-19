@@ -12,9 +12,7 @@ homepage = "https://github.com/maxlestage/Facile"
 authors = ["Maxime Nathan Lestage"]
 
 [workspace.dependencies]
-# The branch adds what an embedding program needs (the checker knows the
-# fields of `db` and `mw`); it becomes `master` once merged.
-rythme = { git = "https://github.com/maxlestage/Rythme", branch = "claude/rythme-framework-3d-site-odfjcn" }
+rythme = { git = "https://github.com/maxlestage/Rythme", branch = "master" }
 serde_json = { version = "1", features = ["preserve_order"] }
 
 [profile.release]
