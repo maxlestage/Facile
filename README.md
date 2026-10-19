@@ -115,10 +115,6 @@ node tests/browser/islands.cjs http://localhost:3300         # the islands in Ch
 facile dev site                              # the site, http://localhost:3000
 ```
 
-Facile depends on the `claude/rythme-framework-3d-site-odfjcn` branch of Rythme, which teaches
-Rythme's checker the fields of records given by a host program (`db`, `mw`); it becomes `master`
-once merged.
-
 ## License
 
 MIT.
