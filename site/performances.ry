@@ -1,0 +1,35 @@
+# The measures of the benchmark (bench/ in the repository), shown by the
+# home page and the Performance page. Requests per second.
+
+pipeline_millions = 2.7
+cache_ns = 73
+
+## Facile and Vitesse measured in turn (bench/ab.sh), 7 rounds each, 128 connections:
+## the fairest comparison. Vitesse keeps the lead on the JSON echo.
+accueil = [
+  {nom: "GET /json, en-têtes de navigateur", serveurs: [["Facile", 267658], ["Vitesse", 249391]]},
+  {nom: "GET /users/:id (paramètre + JSON)", serveurs: [["Facile", 276757], ["Vitesse", 265733]]},
+  {nom: "POST /echo (JSON lu et renvoyé)", serveurs: [["Facile", 250942], ["Vitesse", 262727]]},
+]
+
+alterne = [
+  ["GET / (texte)", 267163, 256532],
+  ["GET /json", 274179, 259325],
+  ["GET /json, en-têtes de navigateur", 267658, 249391],
+  ["GET /users/:id", 276757, 265733],
+  ["POST /echo (JSON)", 250942, 262727],
+  ["GET / en pipeline ×16", 2702136, 2607071],
+]
+
+## Every server, one after the other (bench/run.sh), 128 connections.
+complet = [
+  {nom: "GET / (texte)", serveurs: [["Facile", 264688], ["Vitesse", 262704], ["actix-web", 248508], ["axum", 191135]]},
+  {nom: "GET /json", serveurs: [["Facile", 251993], ["Vitesse", 252254], ["actix-web", 249498], ["axum", 175985]]},
+  {nom: "GET /json, en-têtes de navigateur", serveurs: [["Facile", 237712], ["Vitesse", 252333], ["actix-web", 191140], ["axum", 142658]]},
+  {nom: "GET /users/:id", serveurs: [["Facile", 267607], ["Vitesse", 272276], ["actix-web", 224220], ["axum", 166449]]},
+  {nom: "POST /echo (JSON)", serveurs: [["Facile", 233792], ["Vitesse", 256236], ["actix-web", 175884], ["axum", 129084]]},
+  {nom: "GET / en pipeline ×16", serveurs: [["Facile", 2638009], ["Vitesse", 2682204], ["actix-web", 1274073], ["axum", 254865]]},
+]
+
+## 281215 written 281 215.
+fn milliers(n) = format_number(n, 0, "fr")

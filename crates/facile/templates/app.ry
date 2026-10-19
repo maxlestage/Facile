@@ -1,0 +1,38 @@
+# {{nom}}: an application written in Rythme with Facile.
+#   facile dev        http://localhost:3000, reloaded at each change
+#   facile check      checks everything, without running it
+
+use client/compteur
+
+## The tasks, kept in the database (DATABASE_URL; memory:// by default).
+taches = model("taches", {
+  titre: field(:text, {required: true, max: 120}),
+  fait: field(:bool, {default: false}),
+})
+
+fn accueil(req) = page({
+  title: "{{nom}}",
+  description: "Une application Facile, écrite en Rythme.",
+  lang: "fr",
+  css: ["/static/style.css"],
+}, [
+  main([
+    h1("{{nom}}"),
+    p(["Cette page est rendue par le serveur. Le compteur ci-dessous vit dans le navigateur, en WebAssembly."]),
+    island(compteur.component, {depart: 0}),
+    h2("Les tâches"),
+    p([a({href: "/api/taches"}, ["/api/taches"]), " : une API REST, écrite en une ligne."]),
+  ]),
+])
+
+fn remplir() = if db.count(taches) > 0
+  then Ok([])
+  else db.insert_all(taches, [{titre: "Lire le guide de Facile"}, {titre: "Écrire ma première page"}])
+
+app("{{nom}}")
+  |> models([taches])
+  |> resource("/api/taches", taches)
+  |> on_get("/", accueil)
+  |> assets("/static", "public")
+  |> middleware(mw.shield())
+  |> on_start(remplir)

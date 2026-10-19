@@ -1,0 +1,69 @@
+# The documentation: Markdown files in docs/fr and docs/en, read once when
+# the site starts, shown with a menu and a table of contents.
+
+use textes
+use mise_en_page
+
+## The topics, in the order of the menu: [slug, French title, English title].
+sujets = [
+  ["start", "Démarrer", "Getting started"],
+  ["routes", "Routes et pages", "Routes and pages"],
+  ["requests", "Requêtes et réponses", "Requests and responses"],
+  ["middlewares", "Middlewares", "Middlewares"],
+  ["orm", "ORM et bases de données", "ORM and databases"],
+  ["views", "Vues et SEO", "Views and SEO"],
+  ["islands", "Îlots WebAssembly", "WebAssembly islands"],
+  ["security", "Sécurité", "Security"],
+  ["deploy", "Déployer", "Deploying"],
+  ["cli", "La commande facile", "The facile command"],
+  ["reference", "Référence", "Reference"],
+]
+
+fn _lire(lang, slug) = unwrap_or(read_file("docs/{lang}/{slug}.md"), "# {slug}\n\n(texte manquant)")
+
+## Every text, by language and slug, read now: serving a page reads nothing more.
+textes_fr = dict(sujets.map { |[slug, _, _]| [slug, _lire("fr", slug)] })
+textes_en = dict(sujets.map { |[slug, _, _]| [slug, _lire("en", slug)] })
+
+fn _texte(lang, slug) = get(if lang == "en" then textes_en else textes_fr, slug)
+
+fn _titre(lang, [_, fr, en]) = if lang == "en" then en else fr
+
+fn _menu(lang, actuel) = nav({class: "docs-nav", "aria-label": textes.textes(lang).docs_titre}, [
+  h4([textes.textes(lang).docs_titre]),
+  ul(sujets.map { |s| li([a({href: textes.lien(lang, "/docs/{s[0]}"), "aria-current": if s[0] == actuel then "page" else ()}, [_titre(lang, s)])]) }),
+])
+
+fn _sommaire(lang, md) = nav({class: "toc", "aria-label": textes.textes(lang).sur_page}, [
+  h4([textes.textes(lang).sur_page]),
+  ul(toc(md).filter { |h| h.level > 1 and h.level < 4 }.map { |h| li([a({href: "#" + h.anchor, class: "l{h.level}"}, [h.title])]) }),
+])
+
+fn _voisin(lang, i, classe, legende) = match get(sujets, i)
+  Some(s) -> a({class: classe, href: textes.lien(lang, "/docs/{s[0]}")}, [small([legende]), _titre(lang, s)])
+  None -> span([])
+end
+
+## The page of a topic, or `None` when there is no such topic.
+fn page_doc(lang, slug) = match _texte(lang, slug)
+  None -> None
+  Some(md) -> do
+    t = textes.textes(lang)
+    i = unwrap_or(index_of(sujets.map { |s| s[0] }, slug), 0)
+    titre = _titre(lang, sujets[i])
+    Some(mise_en_page.document(lang, "/docs/{slug}", mise_en_page.reglages({title: "{titre} · Facile", description: "{titre} : {t.description}"}), [
+      div({class: "wrap docs"}, [
+        _menu(lang, slug),
+        article({class: "prose"}, [
+          markdown(md),
+          div({class: "pager"}, [
+            if i > 0 then _voisin(lang, i - 1, "prev", t.precedent) else span([]),
+            _voisin(lang, i + 1, "next", t.suivant),
+          ]),
+          p({style: {"margin-top": "2rem"}}, [a({href: "{mise_en_page.depot}/edit/master/site/docs/{lang}/{slug}.md", rel: "noopener"}, [t.modifier, " ↗"])]),
+        ]),
+        _sommaire(lang, md),
+      ]),
+    ]))
+  end
+end

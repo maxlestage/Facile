@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: facile
+          POSTGRES_PASSWORD: facile
+          POSTGRES_DB: facile_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+        env:
+          FACILE_TEST_POSTGRES: postgres://facile:facile@localhost/facile_test
+      - name: The WebAssembly of the browser builds
+        run: cargo build -p facile-client --target wasm32-unknown-unknown --profile wasm
+      - name: The site and the examples pass the checker
+        run: |
+          cargo build --release -p facile
+          ./target/release/facile check site
+          ./target/release/facile check examples/taches
+          ./target/release/facile check bench/app.ry
+      - name: A new application works
+        run: |
+          ./target/release/facile new /tmp/essai
+          ./target/release/facile check /tmp/essai

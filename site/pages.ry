@@ -1,0 +1,63 @@
+# The other pages: performance, legal notice, privacy, the newsletter, 404.
+
+use textes
+use mise_en_page
+use performances
+
+fn _simple(lang, chemin, titre, eyebrow, intro, contenu) = mise_en_page.document(lang, chemin, mise_en_page.reglages({title: "{titre} · Facile"}), [
+  div({class: "wrap"}, [
+    div({class: "page-hero"}, [span({class: "eyebrow", "data-reveal": 0}, [eyebrow]), h1({"data-reveal": 1}, [titre]), p({"data-reveal": 2}, [intro])]),
+    div({class: "prose legal"}, contenu),
+  ]),
+])
+
+fn _texte(chemin) = unwrap_or(read_file(chemin), "")
+
+benchmark_fr = _texte("docs/fr/performance.md")
+benchmark_en = _texte("docs/en/performance.md")
+mentions_fr = _texte("docs/fr/legal.md")
+mentions_en = _texte("docs/en/legal.md")
+vie_privee_fr = _texte("docs/fr/privacy.md")
+vie_privee_en = _texte("docs/en/privacy.md")
+
+fn _barre(rang, nom, valeur, max) = div({class: if nom == "Facile" then "bar-row us" else "bar-row"}, [
+  span({class: "who"}, [nom]),
+  div({class: "track"}, [div({class: "prism", style: {"--w": "{valeur * 100 / max}%", "--delay": "{rang * 120}ms"}}, [h("i"), h("i"), h("i")])]),
+  span({class: "val"}, [performances.milliers(valeur)]),
+])
+
+fn _groupe(s) = do
+  max = s.serveurs.map { |[_, v]| v }.max
+  div({class: "bench-group", "data-reveal": 0}, [h3([s.nom]), div({class: "bars"}, s.serveurs.enumerate.map { |[i, [nom, v]]| _barre(i, nom, v, max) })])
+end
+
+fn benchmark(lang) = do
+  fr = lang == "fr"
+  _simple(lang, "/benchmark", if fr then "Performances" else "Performance", "Benchmark",
+    if fr then "Le banc d'essai de Vitesse, mesuré pour Facile, Vitesse, actix-web et axum sur la même machine. Les chiffres tels qu'ils sont, y compris là où Facile perd." else "Vitesse's benchmark, measured for Facile, Vitesse, actix-web and axum on the same machine. The numbers as they are, including where Facile loses.",
+    [div({class: "bench", style: {margin: "0 0 3rem"}}, performances.alterne.map { |[nom, f, v]| _groupe({nom, serveurs: [["Facile", f], ["Vitesse", v]]}) }), markdown(if fr then benchmark_fr else benchmark_en)])
+end
+
+fn mentions(lang) = _simple(lang, "/legal", textes.textes(lang).mentions, "Facile", if lang == "fr" then "Qui publie ce site, et qui l'héberge." else "Who publishes this site, and who hosts it.", [markdown(if lang == "fr" then mentions_fr else mentions_en)])
+
+fn vie_privee(lang) = _simple(lang, "/privacy", textes.textes(lang).confidentialite, "Facile", if lang == "fr" then "Ce que ce site garde de vous : presque rien." else "What this site keeps about you: almost nothing.", [markdown(if lang == "fr" then vie_privee_fr else vie_privee_en)])
+
+fn introuvable(lang) = do
+  t = textes.textes(lang)
+  mise_en_page.document(lang, "/", mise_en_page.reglages({title: "404 · Facile", status: 404}), [
+    div({class: "wrap", style: {"text-align": "center", padding: "6rem 0 2rem"}}, [
+      p({class: "big-404"}, ["404"]),
+      h1({"data-reveal": 0}, [t.introuvable_titre]),
+      p({style: {color: "var(--muted)"}, "data-reveal": 1}, [t.introuvable_texte]),
+      p({"data-reveal": 2}, [a({class: "btn btn-primary", href: textes.lien(lang, "/")}, [t.accueil])]),
+    ]),
+  ])
+end
+
+## What the newsletter answers: a short page, then back to the site.
+fn merci(lang, message, bien) = mise_en_page.document(lang, "/", mise_en_page.reglages({title: "Newsletter · Facile"}), [
+  div({class: "wrap", style: {padding: "6rem 0", "max-width": "40rem"}}, [
+    p({class: if bien then "notice" else "notice bad", role: "status"}, [message]),
+    p([a({class: "btn", href: textes.lien(lang, "/")}, ["← ", textes.textes(lang).accueil])]),
+  ]),
+])
