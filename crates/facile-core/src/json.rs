@@ -285,8 +285,8 @@ impl<'de> serde::de::Visitor<'de> for Seed<'_> {
 
 thread_local! {
     /// Keys and shapes met before: the same JSON objects come again and again.
-    static KEYS: std::cell::RefCell<std::collections::HashMap<Box<str>, Rc<str>>> = Default::default();
-    static SHAPES: std::cell::RefCell<std::collections::HashMap<Vec<Rc<str>>, Rc<rythme::value::Shape>>> = Default::default();
+    static KEYS: std::cell::RefCell<rustc_hash::FxHashMap<Box<str>, Rc<str>>> = Default::default();
+    static SHAPES: std::cell::RefCell<rustc_hash::FxHashMap<Vec<Rc<str>>, Rc<rythme::value::Shape>>> = Default::default();
 }
 
 fn key(k: &str) -> Rc<str> {

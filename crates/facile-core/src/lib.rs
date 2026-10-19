@@ -3,7 +3,9 @@
 
 pub mod component;
 pub mod effects;
+pub mod evaluate;
 pub mod json;
+pub mod markdown;
 pub mod util;
 pub mod view;
 

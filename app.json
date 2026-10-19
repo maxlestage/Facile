@@ -1,0 +1,13 @@
+{
+  "name": "Facile",
+  "description": "The site of Facile, the web framework of the Rythme language, served by Facile itself.",
+  "repository": "https://github.com/maxlestage/Facile",
+  "keywords": ["rythme", "web", "framework", "webassembly", "rust"],
+  "stack": "container",
+  "env": {
+    "SITE_URL": {
+      "description": "The public address of the site, for canonical URLs, social cards and the sitemap.",
+      "required": false
+    }
+  }
+}

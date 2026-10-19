@@ -207,20 +207,43 @@ pub fn raw(text: &str, params: Vec<Cell>) -> Result<(Vec<String>, Vec<Row>), Str
     })
 }
 
+thread_local! {
+    /// How many transactions are open: the ones inside are savepoints.
+    static OPEN: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Starts a transaction, or a savepoint inside the one that is open.
 pub fn begin() -> Result<(), String> {
+    let depth = OPEN.with(|o| o.get());
+    let sql = if depth == 0 { "BEGIN".to_string() } else { format!("SAVEPOINT facile_{depth}") };
     with_db(|db| match db {
         Db::Memory => {
             SNAPSHOT.with(|s| s.borrow_mut().push(memory::snapshot()));
             Ok(())
         }
         #[cfg(feature = "sqlite")]
-        Db::Sqlite(c) => c.execute_batch("BEGIN").map_err(|e| e.to_string()),
+        Db::Sqlite(c) => c.execute_batch(&sql).map_err(|e| e.to_string()),
         #[cfg(feature = "postgres")]
-        Db::Postgres(c) => c.batch_execute("BEGIN").map_err(|e| e.to_string()),
-    })
+        Db::Postgres(c) => c.batch_execute(&sql).map_err(|e| e.to_string()),
+    })?;
+    OPEN.with(|o| o.set(depth + 1));
+    Ok(())
 }
 
+/// Ends the innermost transaction: kept with `commit`, undone otherwise.
 pub fn finish(commit: bool) -> Result<(), String> {
+    let depth = OPEN.with(|o| o.get());
+    if depth == 0 {
+        return Ok(());
+    }
+    OPEN.with(|o| o.set(depth - 1));
+    let inner = depth - 1;
+    let sql = match (inner, commit) {
+        (0, true) => "COMMIT".to_string(),
+        (0, false) => "ROLLBACK".to_string(),
+        (n, true) => format!("RELEASE SAVEPOINT facile_{n}"),
+        (n, false) => format!("ROLLBACK TO SAVEPOINT facile_{n}; RELEASE SAVEPOINT facile_{n}"),
+    };
     with_db(|db| match db {
         Db::Memory => {
             if let Some(s) = SNAPSHOT.with(|s| s.borrow_mut().pop()) {
@@ -231,9 +254,9 @@ pub fn finish(commit: bool) -> Result<(), String> {
             Ok(())
         }
         #[cfg(feature = "sqlite")]
-        Db::Sqlite(c) => c.execute_batch(if commit { "COMMIT" } else { "ROLLBACK" }).map_err(|e| e.to_string()),
+        Db::Sqlite(c) => c.execute_batch(&sql).map_err(|e| e.to_string()),
         #[cfg(feature = "postgres")]
-        Db::Postgres(c) => c.batch_execute(if commit { "COMMIT" } else { "ROLLBACK" }).map_err(|e| e.to_string()),
+        Db::Postgres(c) => c.batch_execute(&sql).map_err(|e| e.to_string()),
     })
 }
 

@@ -141,6 +141,7 @@ impl Query {
             };
             let cell = match op {
                 Op::Contains | Op::StartsWith | Op::EndsWith => Cell::Text(cell.as_text()),
+                Op::In | Op::NotIn | Op::IsNull | Op::NotNull => Cell::Null,
                 _ => fit(cell)?,
             };
             let values = match (&op, &value) {

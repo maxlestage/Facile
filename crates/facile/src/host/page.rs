@@ -17,8 +17,21 @@ use rythme::value::Value;
 
 use super::respond::response_value;
 
+/// A setting given: not `()` nor `None`, and `x` for `Some(x)`.
+fn given(o: &Value, k: &str) -> Option<Value> {
+    match field(o, k)? {
+        Value::Unit => None,
+        v @ Value::Variant(var) => match facile_core::util::variant_name(v).as_deref() {
+            Some("None") => None,
+            Some("Some") => Some(var.fields[0].clone()),
+            _ => Some(v.clone()),
+        },
+        v => Some(v.clone()),
+    }
+}
+
 fn opt_text(o: &Value, k: &str) -> Option<String> {
-    field(o, k).filter(|v| !matches!(v, Value::Unit)).map(|v| v.display())
+    given(o, k).map(|v| v.display())
 }
 
 fn list_texts(o: &Value, k: &str) -> Vec<String> {
@@ -115,9 +128,9 @@ pub fn document(opts: &Value, body: &Value) -> String {
         };
         h.push_str(&format!("<link rel=\"preload\" href=\"{}\" as=\"{kind}>\n", escaped(&p)));
     }
-    if let Some(ld) = field(opts, "json_ld").filter(|v| !matches!(v, Value::Unit)) {
+    if let Some(ld) = given(opts, "json_ld") {
         // `</` would end the script early.
-        let json = to_json_text(ld).replace("</", "<\\/");
+        let json = to_json_text(&ld).replace("</", "<\\/");
         h.push_str(&format!("<script type=\"application/ld+json\">{json}</script>\n"));
     }
     if let Some(Value::List(extra)) = field(opts, "head") {

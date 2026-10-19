@@ -1,0 +1,16 @@
+projets = model("projets", {
+  nom: field(:text, {required: true, unique: true}),
+  taches: has_many("taches", :projet),
+})
+
+fn urgentes(req) = taches
+  |> where(:fait, false)
+  |> where(:priorite, ">=", 4)
+  |> include(:projet)
+  |> order_by(:echeance)
+  |> db.paginate(1, 20)
+
+fn terminer(req) = db.transaction do
+  tache = db.update(taches, req.params.id, {fait: true})?
+  db.insert(journal, {texte: "Terminé : {tache.titre}"})
+end

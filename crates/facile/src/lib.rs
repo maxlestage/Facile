@@ -13,6 +13,7 @@ pub mod router;
 pub mod runtime;
 pub mod server;
 pub mod statics;
+pub mod testing;
 
 pub use facile_core;
 pub use rythme;

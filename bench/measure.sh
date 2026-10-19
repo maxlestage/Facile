@@ -1,7 +1,7 @@
 #!/bin/sh
-# measure.sh NAME PORT PATH [wrk script] -- prints requests/s and server CPU µs per request.
-# The server must already run (pinned with taskset to $SERVER_CPUS); wrk runs on $CLIENT_CPUS.
-name=$1; port=$2; path=$3; script=$4
+# measure.sh NAME PORT PATH [wrk script]: requests/s, and the server's CPU µs per request.
+# PID names the server's process; wrk runs on $CLIENT_CPUS (2,3 by default).
+name=$1; port=${PORT:-$2}; path=$3; script=$4
 pid=${PID:-$(pgrep -f "$PROC" | head -1)}
 ticks() { awk '{print $14 + $15}' /proc/$pid/stat; }
 hz=$(getconf CLK_TCK)

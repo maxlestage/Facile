@@ -1,0 +1,22 @@
+# A counter that lives in the browser: each click is a message for `update`.
+
+fn init(props) = {n: props.depart, pas: 1}
+
+fn update(etat, message) = match message
+  :plus -> {..etat, n: etat.n + etat.pas}
+  :moins -> {..etat, n: etat.n - etat.pas}
+  :zero -> {..etat, n: 0}
+  :double -> {..etat, pas: etat.pas * 2}
+end
+
+fn view(etat) = div([
+  div({class: "compteur"}, [
+    button({on_click: :moins, "aria-label": "moins"}, ["−"]),
+    strong({class: "valeur", "aria-live": "polite"}, [etat.n]),
+    button({on_click: :plus, "aria-label": "plus"}, ["+"]),
+    button({on_click: :zero, class: "zero"}, ["0"]),
+    button({on_click: :double, class: "zero"}, ["×2 · {etat.pas}"]),
+  ]),
+])
+
+component = {name: "compteur", init, update, view}

@@ -101,6 +101,9 @@ fn entry(target: Option<&str>) -> Result<PathBuf, String> {
 
 fn set_global(file: &Path, production: bool) {
     let root = file.parent().map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from("."));
+    // Paths written in the application (`read_file("docs/a.md")`, `sqlite://app.db`)
+    // are read from its folder, wherever `facile` was started.
+    let _ = std::env::set_current_dir(&root);
     runtime::set_global(Global { root, entry: file.to_path_buf(), production, lang: rythme::lang::code().to_string() });
 }
 
@@ -142,6 +145,10 @@ fn main() -> ExitCode {
             }
         },
         "check" => check(o.target.as_deref()),
+        "reference" => {
+            print!("{}", reference());
+            Ok(())
+        }
         "routes" => routes(o.target.as_deref()),
         "serve" | "start" => serve(&o, std::env::var("FACILE_ENV").map(|e| e != "development").unwrap_or(true)),
         "run-dev" => serve(&o, false),
@@ -155,6 +162,64 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+/// Every function Facile adds to Rythme, as Markdown, in the language of the messages.
+fn reference() -> String {
+    use facile::host::{app, chain, mw, page, request, respond};
+    use facile_core::{effects, evaluate, markdown, view};
+    use rythme::builtins::Builtin;
+    let fr = rythme::lang::code() == "fr";
+    let mut out = String::new();
+    out.push_str(if fr {
+        "# Référence\n\nToutes les fonctions que Facile ajoute à Rythme, avec ce qu'elles font. Cette page est écrite par `facile reference --lang fr`, à partir du code.\n"
+    } else {
+        "# Reference\n\nEvery function Facile adds to Rythme, with what it does. This page is written by `facile reference --lang en`, from the code.\n"
+    });
+    let section = |out: &mut String, title: &str, list: &[&Builtin], prefix: &str| {
+        out.push_str(&format!(
+            "\n## {title}\n\n| {} | {} |\n|---|---|\n",
+            if fr { "Fonction" } else { "Function" },
+            if fr { "Effet" } else { "Effect" }
+        ));
+        for b in list {
+            let sig = if prefix.is_empty() || b.sig.contains('.') { b.sig.to_string() } else { format!("{prefix}{}", b.sig) };
+            let doc = if fr { b.fr } else { b.en };
+            out.push_str(&format!("| `{sig}` | {} |\n", doc.replace('|', "\\|").replace('\n', " ")));
+        }
+    };
+    let all = |l: &'static [Builtin]| l.iter().collect::<Vec<_>>();
+    section(&mut out, "Application", &all(app::APP), "");
+    section(&mut out, if fr { "Requête" } else { "Request" }, &request::ACCESSORS.iter().collect::<Vec<_>>(), "");
+    section(&mut out, if fr { "Réponses" } else { "Responses" }, &all(respond::RESPOND), "");
+    section(&mut out, "Middlewares", &[&chain::NEXT], "");
+    section(&mut out, "mw", &all(mw::MW), "");
+    section(
+        &mut out,
+        if fr { "Pages et vues" } else { "Pages and views" },
+        &[all(page::PAGE), all(view::VIEW), all(markdown::MARKDOWN)].concat(),
+        "",
+    );
+    section(
+        &mut out,
+        if fr { "Îlots : effets" } else { "Islands: effects" },
+        &[all(effects::EFFECTS), all(evaluate::EVALUATE)].concat(),
+        "",
+    );
+    section(&mut out, if fr { "Modèles et requêtes" } else { "Models and queries" }, &all(facile::orm::host::ORM), "");
+    section(&mut out, "db", &all(facile::orm::host::DB), "");
+    let tags: Vec<String> = view::TAGS.iter().map(|b| format!("`{}`", b.name)).collect();
+    out.push_str(&format!(
+        "\n## {}\n\n{}\n\n{}\n",
+        if fr { "Éléments HTML" } else { "HTML elements" },
+        if fr {
+            "Chacun s'appelle `tag()`, `tag(enfants)`, `tag(attributs)` ou `tag(attributs, enfants)` ; `h(\"nom\", ...)` donne les autres."
+        } else {
+            "Each is called `tag()`, `tag(children)`, `tag(attributes)` or `tag(attributes, children)`; `h(\"name\", ...)` gives the others."
+        },
+        tags.join(", ")
+    ));
+    out
 }
 
 fn check(target: Option<&str>) -> Result<(), String> {
@@ -185,7 +250,11 @@ fn serve(o: &Options, production: bool) -> Result<(), String> {
     let f = file.clone();
     let settings = on_big_stack(move || {
         Runtime::load(&f, false).map(|mut r| {
-            let started = r.start(false).err();
+            if let Some(l) = &r.settings.lang {
+                runtime::set_app_lang(l);
+            }
+            // The tables are made, and `on_start` runs, once, before the workers start.
+            let started = r.start(true).err();
             (r.settings.workers, r.settings.body_limit, r.name.clone(), started)
         })
     })
@@ -218,7 +287,8 @@ fn serve(o: &Options, production: bool) -> Result<(), String> {
                 std::process::exit(1);
             }
         };
-        if let Err(e) = rt.start(w == 0) {
+        let _ = w;
+        if let Err(e) = rt.start(false) {
             eprintln!("facile: {e}");
             std::process::exit(1);
         }

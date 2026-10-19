@@ -1,0 +1,145 @@
+# The frame of every page: the head, the header, the footer.
+
+use textes
+use icones
+
+## The address of the site, for canonical URLs and social cards (SITE_URL).
+site = unwrap_or(env("SITE_URL"), "")
+
+depot = "https://github.com/maxlestage/Facile"
+
+## A value given, or the default: `None` and `()` are not given.
+fn _ou(v, defaut) = match v
+  None -> defaut
+  () -> defaut
+  Some(x) -> x
+  x -> x
+end
+
+fn _absolue(chemin) = if site == "" then None else Some(site + chemin)
+
+fn _nav_lien(t, lang, actuel, chemin, texte) = a({href: textes.lien(lang, chemin), "aria-current": if actuel == chemin then "page" else ()}, [texte])
+
+fn entete(lang, actuel) = do
+  t = textes.textes(lang)
+  header({class: "site-header"}, [
+    div({class: "wrap"}, [
+      a({class: "brand", href: textes.lien(lang, "/"), "aria-label": "Facile"}, [span({class: "brand-mark"}, ["F"]), "Facile", small(["0.1"])]),
+      button({class: "menu-toggle", type: "button", "aria-expanded": "false", "aria-controls": "navigation", "aria-label": t.menu}, [span([])]),
+      nav({class: "site-nav", id: "navigation", "aria-label": "Navigation"}, [
+        a({href: textes.lien(lang, "/") + "#fonctionnalites"}, [t.nav_fonctionnalites]),
+        _nav_lien(t, lang, actuel, "/docs/start", t.nav_docs),
+        _nav_lien(t, lang, actuel, "/benchmark", t.nav_performances),
+        a({href: textes.lien(lang, "/") + "#essayer"}, [t.nav_essayer]),
+        a({href: depot, rel: "noopener"}, ["GitHub"]),
+        span({class: "lang-switch"}, [
+          a({href: textes.lien("fr", actuel), hreflang: "fr", lang: "fr", "aria-current": if lang == "fr" then "true" else ()}, ["FR"]),
+          a({href: textes.lien("en", actuel), hreflang: "en", lang: "en", "aria-current": if lang == "en" then "true" else ()}, ["EN"]),
+        ]),
+        a({class: "btn btn-primary", href: textes.lien(lang, "/docs/start"), "data-magnetic": true}, [t.commencer]),
+      ]),
+    ]),
+  ])
+end
+
+fn _colonne(titre, liens) = div({class: "footer-col"}, [
+  h4([titre]),
+  ul(liens.map { |[texte, href]| li([a({href}, [texte])]) }),
+])
+
+fn pied(lang, actuel) = do
+  t = textes.textes(lang)
+  l = fn(c) = textes.lien(lang, c)
+  footer({class: "site-footer"}, [
+    canvas({"data-scene": "horizon", "aria-hidden": "true"}),
+    div({class: "wrap"}, [
+      div({class: "footer-top"}, [
+        div({class: "footer-brand"}, [
+          a({class: "brand", href: l("/")}, [span({class: "brand-mark"}, ["F"]), "Facile"]),
+          p([t.footer_texte]),
+          form({class: "newsletter", method: "post", action: "/newsletter"}, [
+            h("input", {type: "hidden", name: "lang", value: lang}),
+            label({class: "sr-only", for: "courriel"}, [t.newsletter_label]),
+            h("input", {id: "courriel", type: "email", name: "email", required: true, placeholder: t.newsletter_label, autocomplete: "email"}),
+            button({type: "submit"}, [t.newsletter_bouton]),
+          ]),
+          p({class: "newsletter-note"}, [t.newsletter_note]),
+          div({class: "socials"}, [
+            a({href: depot, "aria-label": "GitHub", rel: "noopener"}, [icones.github]),
+            a({href: l("/docs/start"), "aria-label": t.footer_docs}, [icones.livre]),
+            a({href: depot + "/releases.atom", "aria-label": "RSS", rel: "noopener"}, [icones.rss]),
+          ]),
+        ]),
+        _colonne(t.footer_produit, [
+          [t.nav_fonctionnalites, l("/") + "#fonctionnalites"],
+          [t.nav_performances, l("/benchmark")],
+          [t.nav_essayer, l("/") + "#essayer"],
+          ["Changelog", depot + "/blob/master/CHANGELOG.md"],
+        ]),
+        _colonne(t.footer_docs, [
+          [if lang == "en" then "Getting started" else "Démarrer", l("/docs/start")],
+          [if lang == "en" then "Routes" else "Routes", l("/docs/routes")],
+          ["ORM", l("/docs/orm")],
+          [if lang == "en" then "Islands" else "Îlots", l("/docs/islands")],
+          [if lang == "en" then "Deploying" else "Déployer", l("/docs/deploy")],
+        ]),
+        _colonne(t.footer_eco, [
+          ["Rythme", "https://github.com/maxlestage/Rythme"],
+          ["Paquets", "https://github.com/maxlestage/Paquets"],
+          ["Vitesse", "https://github.com/maxlestage/Vitesse"],
+          ["Memoire", "https://github.com/maxlestage/Memoire"],
+        ]),
+        _colonne(t.footer_ressources, [
+          ["GitHub", depot],
+          [if lang == "en" then "Examples" else "Exemples", depot + "/tree/master/examples"],
+          [if lang == "en" then "Report an issue" else "Signaler un problème", depot + "/issues"],
+          [t.plan, "/sitemap.xml"],
+        ]),
+      ]),
+      p({class: "footer-giant", "aria-hidden": "true"}, ["Facile"]),
+      div({class: "footer-bottom"}, [
+        span(["© 2026 Facile · ", t.droits, " · ", t.fait_avec]),
+        span({class: "status"}, [t.statut]),
+        nav({"aria-label": t.mentions}, [
+          a({href: l("/legal")}, [t.mentions]),
+          a({href: l("/privacy")}, [t.confidentialite]),
+          a({class: "top-link", href: "#haut"}, [t.haut, " ↑"]),
+        ]),
+      ]),
+    ]),
+  ])
+end
+
+## A whole page of the site: its head, its header, its content, its footer.
+fn document(lang, actuel, reglages, contenu) = do
+  t = textes.textes(lang)
+  page({
+    lang: lang,
+    title: _ou(reglages.title, t.titre),
+    description: _ou(reglages.description, t.description),
+    url: _absolue(textes.lien(lang, actuel)),
+    image: _absolue("/static/img/og.png"),
+    site_name: "Facile",
+    theme_color: "#07070d",
+    icon: "/static/img/favicon.svg",
+    manifest: "/manifest.webmanifest",
+    alternates: {fr: textes.lien("fr", actuel), en: textes.lien("en", actuel), "x-default": textes.lien("fr", actuel)},
+    css: ["/static/css/site.css"],
+    base_css: false,
+    js: ["/static/js/site.js"],
+    json_ld: reglages.json_ld,
+    status: reglages.status,
+  }, [
+    a({class: "skip", href: "#contenu"}, [t.aller_au_contenu]),
+    div({class: "progress", "aria-hidden": "true"}),
+    div({class: "backdrop", "aria-hidden": "true"}),
+    div({class: "grain", "aria-hidden": "true"}),
+    span({id: "haut"}),
+    entete(lang, actuel),
+    main({id: "contenu"}, contenu),
+    pied(lang, actuel),
+  ])
+end
+
+## The settings of a page, all optional: `reglages({title: "..."})`.
+fn reglages(r) = {title: None, description: None, json_ld: (), status: 200, ..r}
