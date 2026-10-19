@@ -1,0 +1,19 @@
+# The routes of Vitesse's benchmark (bench/ of Vitesse), written in Rythme.
+
+fn texte(req) = "Hello, World!"
+
+fn message(req) = json({message: "Hello, World!"})
+
+fn utilisateur(req) = json({id: req.params.id, name: "Ada"})
+
+fn echo(req) = match req.json()
+  Ok(v) -> json(v)
+  Err(e) -> problem(400, e)
+end
+
+app("Bench")
+  |> on_get("/", texte)
+  |> on_get("/json", message)
+  |> on_get("/users/:id", utilisateur)
+  |> on_post("/echo", echo)
+  |> settings({cache: env("FACILE_CACHE") != Some("off")})

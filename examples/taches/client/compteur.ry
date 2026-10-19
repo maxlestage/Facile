@@ -1,0 +1,18 @@
+# A counter, computed on the server, then alive in the browser.
+
+fn init(props) = {n: props.depart}
+
+fn update(etat, message) = match message
+  :plus -> {..etat, n: etat.n + 1}
+  :moins -> {..etat, n: etat.n - 1}
+  :zero -> {..etat, n: 0}
+end
+
+fn view(etat) = div({class: "compteur"}, [
+  button({on_click: :moins, "aria-label": "moins"}, ["−"]),
+  strong({class: "valeur"}, [etat.n]),
+  button({on_click: :plus, "aria-label": "plus"}, ["+"]),
+  button({on_click: :zero, class: "discret"}, ["Zéro"]),
+])
+
+component = {name: "compteur", init, update, view}
