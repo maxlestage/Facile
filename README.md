@@ -4,7 +4,7 @@
 
 **The full-stack web framework of the [Rythme](https://github.com/maxlestage/Rythme) language.**
 
-A server faster than Vitesse, middlewares, an ORM that talks to all your databases, and a WebAssembly front end: all written in Rythme, from the server to the browser.
+A server as fast as Vitesse, middlewares, an ORM that talks to all your databases, and a WebAssembly front end: all written in Rythme, from the server to the browser.
 
 **English** · [Français](README.fr.md)
 
@@ -44,7 +44,7 @@ Rythme compiled to WebAssembly, and a security shield in front of every request.
 
 | | |
 |---|---|
-| ⚡ **Faster than Vitesse** | One thread per core, epoll, pipelining, no lock and no allocation on the way of a request. On Vitesse's own benchmark, Facile serves more requests per second (see below). |
+| ⚡ **As fast as Vitesse** | One thread per core, epoll, pipelining, no lock and no allocation on the way of a request. On Vitesse's own benchmark, Facile and Vitesse are neck and neck, far ahead of actix-web and axum (see below). |
 | ♻️ **The cache of purity** | Rythme is purely functional: a response that only reads its path is kept and given again for ~70 ns of CPU, with nothing to configure. Facile watches what the handler reads (headers, database, clock, files) and only keeps what is safe. |
 | 🧅 **Middlewares** | In Rythme (`fn(req, next)`), or native in Rust with `mw`: WAF, robots, security headers and CSP, CSRF, CORS, rate limits, Basic/Bearer, gzip, request ids, logs. |
 | 🗄️ **An ORM that does it all** | Models, composable queries, validation, relations (`include`), aggregates, pages, transactions (savepoints), hand-written SQL, automatic migrations, a REST API in one line. In memory, SQLite or PostgreSQL. |
@@ -78,16 +78,16 @@ Vitesse's benchmark, its routes written in Rythme (`bench/app.ry`), Facile and V
 
 | Scenario | Facile | Vitesse | Difference |
 |---|--:|--:|--:|
-| `GET /` (text) | 267,163 | 256,532 | **+4.1%** |
-| `GET /json` | 274,179 | 259,325 | **+5.7%** |
-| `GET /json`, 12 browser headers | 267,658 | 249,391 | **+7.3%** |
-| `GET /users/:id` (parameter + JSON) | 276,757 | 265,733 | **+4.1%** |
-| `POST /echo` (JSON read and sent back) | 250,942 | 262,727 | −4.5% |
-| `GET /` pipelined ×16 | 2,702,136 | 2,607,071 | **+3.6%** |
+| `GET /` (text) | 182,211 | 176,846 | +3.0% |
+| `GET /json` | 185,985 | 184,331 | +0.9% |
+| `GET /json`, 12 browser headers | 165,742 | 172,452 | −3.9% |
+| `GET /users/:id` (parameter + JSON) | 193,260 | 184,753 | **+4.6%** |
+| `POST /echo` (JSON read and sent back) | 151,567 | 179,761 | −15.7% |
+| `GET /` pipelined ×16 | 1,834,231 | 1,817,494 | +0.9% |
 
-Requests per second. Facile leads on five scenarios out of six. On the JSON echo, each request really goes through the Rythme interpreter (reading the JSON into values, calling the handler, writing the JSON): Vitesse, compiled Rust, keeps the lead. With 32 connections, the lead on `GET`s grows to +12% and +21%: Facile's engine answers sooner when the machine is not saturated.
+Requests per second. Facile and Vitesse are neck and neck: since November 2026 Vitesse has an engine per thread like Facile's, and the differences on four scenarios are within the noise of the machine (5%). Facile leads on `/users/:id` thanks to its cache of pure responses (the response is kept, the handler does not run again); Vitesse leads with a browser's request, and clearly on the JSON echo, where each request really goes through the Rythme interpreter (reading the JSON into values, calling the handler, writing the JSON).
 
-Against actix-web and axum the gap is clear: +1% to +33% over actix-web, +38% to +81% over axum, and pipelined twice actix-web and 10 times axum. Every measure, with and without the cache, and the method: [`site/docs/en/performance.md`](site/docs/en/performance.md).
+Against actix-web and axum the gap is clear: +3% to +26% over actix-web, +71% to +101% over axum, and pipelined twice actix-web and 11 times axum. Every measure, with and without the cache, and the method: [`site/docs/en/performance.md`](site/docs/en/performance.md).
 
 
 ## How it is made
