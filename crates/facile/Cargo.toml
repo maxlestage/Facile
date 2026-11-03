@@ -1,6 +1,6 @@
 [package]
 name = "facile"
-description = "Facile: the full-stack web framework for the Rythme language. A server faster than Vitesse, middlewares, an ORM, and a front end in WebAssembly."
+description = "Facile: the full-stack web framework for the Rythme language. A server as fast as Vitesse, middlewares, an ORM, and a front end in WebAssembly."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

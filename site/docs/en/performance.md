@@ -4,14 +4,14 @@ The fairest comparison: both servers run together and are measured **in turn** (
 
 | Scenario | Facile | Vitesse | Difference |
 |---|--:|--:|--:|
-| `GET /` (text) | 267,163 | 256,532 | **+4.1%** |
-| `GET /json` | 274,179 | 259,325 | **+5.7%** |
-| `GET /json`, 12 browser headers | 267,658 | 249,391 | **+7.3%** |
-| `GET /users/:id` (parameter + JSON) | 276,757 | 265,733 | **+4.1%** |
-| `POST /echo` (JSON read and sent back) | 250,942 | 262,727 | −4.5% |
-| `GET /` pipelined ×16 | 2,702,136 | 2,607,071 | **+3.6%** |
+| `GET /` (text) | 182,211 | 176,846 | +3.0% |
+| `GET /json` | 185,985 | 184,331 | +0.9% |
+| `GET /json`, 12 browser headers | 165,742 | 172,452 | −3.9% |
+| `GET /users/:id` (parameter + JSON) | 193,260 | 184,753 | **+4.6%** |
+| `POST /echo` (JSON read and sent back) | 151,567 | 179,761 | −15.7% |
+| `GET /` pipelined ×16 | 1,834,231 | 1,817,494 | +0.9% |
 
-Requests per second. Facile leads on five scenarios out of six. On the JSON echo, each request really goes through the Rythme interpreter (reading the JSON into values, calling the handler, writing the JSON): Vitesse, compiled Rust, keeps the lead. With 32 connections, the lead on `GET`s grows to +12% and +21%: Facile's engine answers sooner when the machine is not saturated.
+Requests per second. Facile and Vitesse are neck and neck: since November 2026 Vitesse has an engine per thread like Facile's (one epoll per core, no task per connection, a short spin before sleeping), and the differences on four scenarios are within the noise of the machine (5%). Facile leads on `/users/:id` thanks to its cache of pure responses (the response is kept, the handler does not run again); Vitesse leads with a browser's request, and clearly on the JSON echo, where each request really goes through the Rythme interpreter (reading the JSON into values, calling the handler, writing the JSON).
 
 ## Every server
 
@@ -19,16 +19,18 @@ The same scenarios, each server measured alone, one after the other (`bench/run.
 
 | Scenario | Facile | Facile without cache | Vitesse | actix-web | axum |
 |---|--:|--:|--:|--:|--:|
-| `GET /` | 264,688 | 276,904 | 262,704 | 248,508 | 191,135 |
-| `GET /json` | 251,993 | 274,725 | 252,254 | 249,498 | 175,985 |
-| `GET /json`, browser | 237,712 | 250,867 | 252,333 | 191,140 | 142,658 |
-| `GET /users/:id` | 267,607 | 271,150 | 272,276 | 224,220 | 166,449 |
-| `POST /echo` | 233,792 | 236,361 | 256,236 | 175,884 | 129,084 |
-| `GET /` pipelined ×16 | 2,638,009 | 2,128,851 | 2,682,204 | 1,274,073 | 254,865 |
+| `GET /` | 179,063 | 180,142 | 175,956 | 174,475 | 104,439 |
+| `GET /json` | 180,760 | 174,481 | 173,191 | 152,498 | 101,206 |
+| `GET /json`, browser | 174,346 | 153,930 | 165,337 | 138,917 | 86,681 |
+| `GET /users/:id` | 192,112 | 166,986 | 178,731 | 152,877 | 96,321 |
+| `POST /echo` | 142,811 | 155,466 | 171,438 | 115,069 | 81,171 |
+| `GET /` pipelined ×16 | 1,977,558 | 1,300,910 | 1,770,173 | 983,771 | 171,985 |
+
+Measured on November 3, 2026, in the same session as the table above, on a slower virtual machine than the previous measures (compare the columns, not with older numbers). Without its cache, Facile runs every handler in the Rythme interpreter: Vitesse, compiled Rust, is then ahead on four scenarios out of six.
 
 ## What the cache does
 
-Without pipelining, all these servers hit the same floor: about 5 µs of kernel work per request (reading, writing, the loopback). The cache of pure responses hardly changes the throughput of lone requests — it shows as soon as that floor is shared: pipelined, **2.7 million requests per second with the cache, 2.1 million without**. In the process, a kept response costs about **73 ns** of CPU, against about 1 µs when the Rythme handler runs.
+Without pipelining, all these servers hit the same floor: about 5 µs of kernel work per request (reading, writing, the loopback). The cache of pure responses hardly changes the throughput of lone requests — it shows as soon as that floor is shared: pipelined, **2.0 million requests per second with the cache, 1.3 million without**. In the process, a kept response costs about **73 ns** of CPU, against about 1 µs when the Rythme handler runs.
 
 ## The method
 

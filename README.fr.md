@@ -4,7 +4,7 @@
 
 **Le framework web full-stack du langage [Rythme](https://github.com/maxlestage/Rythme).**
 
-Un serveur plus rapide que Vitesse, des middlewares, un ORM qui parle à toutes vos bases, et un front-end en WebAssembly : le tout écrit en Rythme, du serveur au navigateur.
+Un serveur aussi rapide que Vitesse, des middlewares, un ORM qui parle à toutes vos bases, et un front-end en WebAssembly : le tout écrit en Rythme, du serveur au navigateur.
 
 [English](README.md) · **Français**
 
@@ -45,7 +45,7 @@ chaque requête.
 
 | | |
 |---|---|
-| ⚡ **Plus rapide que Vitesse** | Un thread par cœur, epoll, pipelining, aucun verrou ni allocation sur le chemin d'une requête. Sur le banc d'essai de Vitesse, Facile sert plus de requêtes par seconde (voir plus bas). |
+| ⚡ **Aussi rapide que Vitesse** | Un thread par cœur, epoll, pipelining, aucun verrou ni allocation sur le chemin d'une requête. Sur le banc d'essai de Vitesse, Facile et Vitesse sont au coude-à-coude, loin devant actix-web et axum (voir plus bas). |
 | ♻️ **Le cache de la pureté** | Rythme est purement fonctionnel : une réponse qui ne lit que son chemin est gardée et redonnée en ~70 ns de CPU, sans rien configurer. Facile observe ce que lit le handler (en-têtes, base, horloge, fichiers) et ne garde que ce qui est sûr. |
 | 🧅 **Middlewares** | En Rythme (`fn(req, next)`), ou natifs en Rust avec `mw` : WAF, robots, en-têtes de sécurité et CSP, CSRF, CORS, limite de débit, Basic/Bearer, gzip, identifiants, journaux. |
 | 🗄️ **Un ORM qui gère tout** | Modèles, requêtes composables, validation, relations (`include`), agrégats, pagination, transactions (points de sauvegarde), SQL à la main, migrations automatiques, API REST en une ligne. En mémoire, SQLite ou PostgreSQL. |
@@ -79,16 +79,16 @@ Le banc d'essai de Vitesse, ses routes réécrites en Rythme (`bench/app.ry`), F
 
 | Scénario | Facile | Vitesse | Écart |
 |---|--:|--:|--:|
-| `GET /` (texte) | 267 163 | 256 532 | **+4,1 %** |
-| `GET /json` | 274 179 | 259 325 | **+5,7 %** |
-| `GET /json`, 12 en-têtes de navigateur | 267 658 | 249 391 | **+7,3 %** |
-| `GET /users/:id` (paramètre + JSON) | 276 757 | 265 733 | **+4,1 %** |
-| `POST /echo` (JSON lu et renvoyé) | 250 942 | 262 727 | −4,5 % |
-| `GET /` en pipeline ×16 | 2 702 136 | 2 607 071 | **+3,6 %** |
+| `GET /` (texte) | 182 211 | 176 846 | +3,0 % |
+| `GET /json` | 185 985 | 184 331 | +0,9 % |
+| `GET /json`, 12 en-têtes de navigateur | 165 742 | 172 452 | −3,9 % |
+| `GET /users/:id` (paramètre + JSON) | 193 260 | 184 753 | **+4,6 %** |
+| `POST /echo` (JSON lu et renvoyé) | 151 567 | 179 761 | −15,7 % |
+| `GET /` en pipeline ×16 | 1 834 231 | 1 817 494 | +0,9 % |
 
-Requêtes par seconde. Facile passe devant sur cinq scénarios sur six. Sur l'écho JSON, chaque requête traverse vraiment l'interpréteur Rythme (lire le JSON en valeurs, appeler le handler, écrire le JSON) : Vitesse, en Rust compilé, garde l'avantage. À 32 connexions, l'écart sur les `GET` monte à +12 et +21 % : le moteur de Facile répond plus vite quand la machine n'est pas saturée.
+Requêtes par seconde. Facile et Vitesse sont au coude-à-coude : depuis novembre 2026, Vitesse a un moteur par thread comme celui de Facile, et les écarts sur quatre scénarios restent dans le bruit de la machine (5 %). Facile passe devant sur `/users/:id` grâce à son cache des réponses pures (la réponse est gardée, le handler ne tourne plus) ; Vitesse passe devant avec la requête d'un navigateur, et nettement sur l'écho JSON, où chaque requête traverse vraiment l'interpréteur Rythme (lire le JSON en valeurs, appeler le handler, écrire le JSON).
 
-Contre actix-web et axum, l'écart est net : de +1 à +33 % face à actix-web, de +38 à +81 % face à axum, et en pipeline 2 fois plus qu'actix-web, 10 fois plus qu'axum. Toutes les mesures, avec et sans le cache, et la méthode : [`site/docs/fr/performance.md`](site/docs/fr/performance.md).
+Contre actix-web et axum, l'écart est net : de +3 à +26 % face à actix-web, de +71 à +101 % face à axum, et en pipeline 2 fois plus qu'actix-web, 11 fois plus qu'axum. Toutes les mesures, avec et sans le cache, et la méthode : [`site/docs/fr/performance.md`](site/docs/fr/performance.md).
 
 
 ## Comment c'est fait

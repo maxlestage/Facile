@@ -4,14 +4,14 @@ Le comparatif le plus juste : les deux serveurs tournent ensemble et sont mesur�
 
 | Scénario | Facile | Vitesse | Écart |
 |---|--:|--:|--:|
-| `GET /` (texte) | 267 163 | 256 532 | **+4,1 %** |
-| `GET /json` | 274 179 | 259 325 | **+5,7 %** |
-| `GET /json`, 12 en-têtes de navigateur | 267 658 | 249 391 | **+7,3 %** |
-| `GET /users/:id` (paramètre + JSON) | 276 757 | 265 733 | **+4,1 %** |
-| `POST /echo` (JSON lu et renvoyé) | 250 942 | 262 727 | −4,5 % |
-| `GET /` en pipeline ×16 | 2 702 136 | 2 607 071 | **+3,6 %** |
+| `GET /` (texte) | 182 211 | 176 846 | +3,0 % |
+| `GET /json` | 185 985 | 184 331 | +0,9 % |
+| `GET /json`, 12 en-têtes de navigateur | 165 742 | 172 452 | −3,9 % |
+| `GET /users/:id` (paramètre + JSON) | 193 260 | 184 753 | **+4,6 %** |
+| `POST /echo` (JSON lu et renvoyé) | 151 567 | 179 761 | −15,7 % |
+| `GET /` en pipeline ×16 | 1 834 231 | 1 817 494 | +0,9 % |
 
-Requêtes par seconde. Facile passe devant sur cinq scénarios sur six. Sur l'écho JSON, chaque requête traverse vraiment l'interpréteur Rythme (lire le JSON en valeurs, appeler le handler, écrire le JSON) : Vitesse, en Rust compilé, garde l'avantage. À 32 connexions, l'écart sur les `GET` monte à +12 et +21 % : le moteur de Facile répond plus vite quand la machine n'est pas saturée.
+Requêtes par seconde. Facile et Vitesse sont au coude-à-coude : depuis novembre 2026, Vitesse a un moteur par thread comme celui de Facile (un epoll par cœur, pas de tâche par connexion, une courte attente active avant de dormir), et les écarts sur quatre scénarios restent dans le bruit de la machine (5 %). Facile passe devant sur `/users/:id` grâce à son cache des réponses pures (la réponse est gardée, le handler ne tourne plus) ; Vitesse passe devant avec la requête d'un navigateur, et nettement sur l'écho JSON, où chaque requête traverse vraiment l'interpréteur Rythme (lire le JSON en valeurs, appeler le handler, écrire le JSON).
 
 ## Tous les serveurs
 
@@ -19,16 +19,18 @@ Les mêmes scénarios, chaque serveur mesuré seul, l'un après l'autre (`bench/
 
 | Scénario | Facile | Facile sans cache | Vitesse | actix-web | axum |
 |---|--:|--:|--:|--:|--:|
-| `GET /` | 264 688 | 276 904 | 262 704 | 248 508 | 191 135 |
-| `GET /json` | 251 993 | 274 725 | 252 254 | 249 498 | 175 985 |
-| `GET /json`, navigateur | 237 712 | 250 867 | 252 333 | 191 140 | 142 658 |
-| `GET /users/:id` | 267 607 | 271 150 | 272 276 | 224 220 | 166 449 |
-| `POST /echo` | 233 792 | 236 361 | 256 236 | 175 884 | 129 084 |
-| `GET /` pipeline ×16 | 2 638 009 | 2 128 851 | 2 682 204 | 1 274 073 | 254 865 |
+| `GET /` | 179 063 | 180 142 | 175 956 | 174 475 | 104 439 |
+| `GET /json` | 180 760 | 174 481 | 173 191 | 152 498 | 101 206 |
+| `GET /json`, navigateur | 174 346 | 153 930 | 165 337 | 138 917 | 86 681 |
+| `GET /users/:id` | 192 112 | 166 986 | 178 731 | 152 877 | 96 321 |
+| `POST /echo` | 142 811 | 155 466 | 171 438 | 115 069 | 81 171 |
+| `GET /` pipeline ×16 | 1 977 558 | 1 300 910 | 1 770 173 | 983 771 | 171 985 |
+
+Mesuré le 3 novembre 2026, dans la même session que le tableau précédent, sur une machine virtuelle plus lente que celle des mesures précédentes (comparez les colonnes, pas avec d'anciens chiffres). Sans son cache, Facile exécute chaque handler dans l'interpréteur Rythme : Vitesse, en Rust compilé, passe alors devant sur quatre scénarios sur six.
 
 ## Ce que fait le cache
 
-Sans pipeline, tous ces serveurs butent sur le même plancher : environ 5 µs de travail du noyau par requête (lire, écrire, la boucle locale). Le cache des réponses pures ne change donc presque rien au débit des requêtes isolées — il se voit dès que ce plancher est partagé : en pipeline, **2,7 millions de requêtes par seconde avec le cache, 2,1 millions sans**. Dans le processus, une réponse gardée coûte environ **73 ns** de CPU, contre environ 1 µs quand le handler Rythme s'exécute.
+Sans pipeline, tous ces serveurs butent sur le même plancher : environ 5 µs de travail du noyau par requête (lire, écrire, la boucle locale). Le cache des réponses pures ne change donc presque rien au débit des requêtes isolées — il se voit dès que ce plancher est partagé : en pipeline, **2,0 millions de requêtes par seconde avec le cache, 1,3 million sans**. Dans le processus, une réponse gardée coûte environ **73 ns** de CPU, contre environ 1 µs quand le handler Rythme s'exécute.
 
 ## La méthode
 
