@@ -84,3 +84,18 @@ Nothing to declare: Facile watches what the handler reads. As soon as it calls `
 ```rythme
 app("Site") |> settings({cache: false})
 ```
+
+## At the same time: `async fn` and `await`
+
+A handler that needs several slow things (web services, queries) can start them all at once and wait for all of them: each `async fn` runs on another core, so the response takes about as long as the slowest one, not their sum.
+
+```rythme
+async fn weather(city) = http_get("https://wttr.in/{city}?format=3")
+
+fn home(req) = do
+  [paris, lyon] = await_all([weather("Paris"), weather("Lyon")])
+  {paris: paris, lyon: lyon}
+end
+```
+
+A task gets copies of its arguments and can use Facile's functions and the database, like the handler. A response that awaited a task is never kept by the cache of purity: Facile cannot see what the task read.
