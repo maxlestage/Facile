@@ -79,7 +79,7 @@ json(produits)
 
 Rythme est **purement fonctionnel** : une fonction donne toujours le même résultat pour les mêmes arguments. Facile s'en sert : quand une réponse à un `GET` n'a lu que son chemin et sa requête — ni en-tête, ni cookie, ni base de données, ni horloge, ni fichier — elle est gardée et redonnée telle quelle aux requêtes suivantes, en quelques dizaines de nanosecondes.
 
-Rien à déclarer : Facile observe ce que le handler lit. Dès qu'il appelle `req.header`, `db.all`, `now()`, `random()`, `read_file`..., sa réponse n'est pas gardée. Pour s'en passer complètement :
+Rien à déclarer : Facile observe ce que le handler lit. Dès qu'il appelle `req.header`, `db.all`, `now()`, `random()`, `uuid()`, `read_file`, `http_get`..., sa réponse n'est pas gardée. Pour s'en passer complètement :
 
 ```rythme
 app("Site") |> settings({cache: false})
