@@ -158,7 +158,8 @@ fn pure_responses_are_kept_and_impure_ones_are_not() {
 fn pure(req) = "pure {req.params.n}"
 fn lit_en_tete(req) = "agent {unwrap_or(req.header("user-agent"), "?")}"
 fn horloge(req) = text(time())
-app("Cache") |> on_get("/pure/:n", pure) |> on_get("/agent", lit_en_tete) |> on_get("/horloge", horloge)
+fn identifiant(req) = uuid()
+app("Cache") |> on_get("/pure/:n", pure) |> on_get("/agent", lit_en_tete) |> on_get("/horloge", horloge) |> on_get("/id", identifiant)
 "#;
     with_app("cache", &[("app.ry", APP)], |rt| {
         assert_eq!(get(rt, "/pure/1").body, "pure 1");
@@ -172,6 +173,8 @@ app("Cache") |> on_get("/pure/:n", pure) |> on_get("/agent", lit_en_tete) |> on_
         std::thread::sleep(std::time::Duration::from_millis(20));
         let t2 = get(rt, "/horloge").body;
         assert_ne!(t1, t2);
+        // Chance was drawn: a new identifier each time.
+        assert_ne!(get(rt, "/id").body, get(rt, "/id").body);
     });
 }
 

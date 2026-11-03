@@ -79,7 +79,7 @@ json(products)
 
 Rythme is **purely functional**: a function always gives the same result for the same arguments. Facile builds on it: when the response to a `GET` read nothing but its path and its query — no header, no cookie, no database, no clock, no file — it is kept and given again as it is to the next requests, in tens of nanoseconds.
 
-Nothing to declare: Facile watches what the handler reads. As soon as it calls `req.header`, `db.all`, `now()`, `random()`, `read_file`..., its response is not kept. To do without it entirely:
+Nothing to declare: Facile watches what the handler reads. As soon as it calls `req.header`, `db.all`, `now()`, `random()`, `uuid()`, `read_file`, `http_get`..., its response is not kept. To do without it entirely:
 
 ```rythme
 app("Site") |> settings({cache: false})

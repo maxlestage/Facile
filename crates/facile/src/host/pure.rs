@@ -2,7 +2,7 @@
 //! and query gives the same response each time, and Facile keeps it.
 //!
 //! The few functions of the language that read the world (the clock,
-//! random numbers, files, the environment) are wrapped here: each one marks
+//! random numbers, files, the environment, the network) are wrapped here: each one marks
 //! the response being computed as one that cannot be kept.
 
 use std::sync::OnceLock;
@@ -46,7 +46,9 @@ impure!(
     shuffle_ => "shuffle"; read_file_ => "read_file", "path"; write_file_ => "write_file", "path";
     append_file_ => "append_file", "path"; file_exists_ => "file_exists", "path"; file_info_ => "file_info", "path";
     list_folder_ => "list_folder", "path"; create_folder_ => "create_folder", "path"; delete_file_ => "delete_file", "path";
-    now_ => "now"; today_ => "today"; sample_ => "sample";
+    now_ => "now"; today_ => "today"; sample_ => "sample"; uuid_ => "uuid";
+    // The network: what another server answers may change.
+    http_get_ => "http_get"; http_post_ => "http_post";
     // A task runs on another thread, where what it reads is not watched.
     await_ => "await"; await_all_ => "await_all";
 );
