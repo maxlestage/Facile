@@ -1,0 +1,22 @@
+# Tasks (`async fn`, `await`) in handlers: tests/tasks.rs runs it.
+
+notes = model("notes", {texte: field(:text, {required: true})})
+
+fn fib(n) = if n < 2 then n else fib(n - 1) + fib(n - 2)
+
+async fn slow(n) = fib(n)
+
+# A task reads the database: its thread has Facile's functions and the same database.
+async fn counted(label) = "{label}: {db.count(notes)}"
+
+fn parallel(req) = text(await_all([20, 21, 22] |> map(slow)))
+
+fn count(req) = await counted("notes")
+
+fn add(req) = db.insert(notes, {texte: "une note"})
+
+app("Tasks")
+  |> models([notes])
+  |> on_get("/parallel", parallel)
+  |> on_get("/count", count)
+  |> on_post("/add", add)

@@ -47,6 +47,8 @@ impure!(
     append_file_ => "append_file", "path"; file_exists_ => "file_exists", "path"; file_info_ => "file_info", "path";
     list_folder_ => "list_folder", "path"; create_folder_ => "create_folder", "path"; delete_file_ => "delete_file", "path";
     now_ => "now"; today_ => "today"; sample_ => "sample";
+    // A task runs on another thread, where what it reads is not watched.
+    await_ => "await"; await_all_ => "await_all";
 );
 
 fn wrapped() -> &'static [Builtin] {

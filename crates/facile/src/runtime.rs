@@ -81,6 +81,15 @@ pub fn resolve(path: &str) -> PathBuf {
     }
 }
 
+/// What the interpreter of each thread of Rythme's tasks (`async fn`) gets,
+/// like the workers of the server: Facile's functions, and the database.
+fn prepare_task_thread(it: &mut rythme::interp::Interp) {
+    crate::host::install(it);
+    if let Some(url) = crate::orm::opened_url() {
+        let _ = crate::orm::open(url);
+    }
+}
+
 /// Called on each worker thread before it loads its application.
 pub fn prepare_thread() {
     rythme::interp::set_stack_budget(crate::STACK_SIZE - (32 << 20));
@@ -172,6 +181,7 @@ impl Runtime {
         ROOT.with(|r| *r.borrow_mut() = folder.map(|f| f.canonicalize().unwrap_or(f)));
         let mut driver = Driver::new();
         crate::host::install(&mut driver.interp);
+        rythme::tasks::on_worker_start(prepare_task_thread);
         let Some(module) = driver.load_file(entry) else {
             return Err(LoadError(util::tr("the application has errors", "l'application a des erreurs")));
         };

@@ -84,3 +84,18 @@ Rien à déclarer : Facile observe ce que le handler lit. Dès qu'il appelle `re
 ```rythme
 app("Site") |> settings({cache: false})
 ```
+
+## En même temps : `async fn` et `await`
+
+Un handler qui a besoin de plusieurs choses lentes (services web, requêtes) peut toutes les lancer d'un coup et les attendre ensemble : chaque `async fn` tourne sur un autre cœur, donc la réponse prend à peu près le temps de la plus lente, pas leur somme.
+
+```rythme
+async fn meteo(ville) = http_get("https://wttr.in/{ville}?format=3")
+
+fn accueil(req) = do
+  [paris, lyon] = await_all([meteo("Paris"), meteo("Lyon")])
+  {paris: paris, lyon: lyon}
+end
+```
+
+Une tâche reçoit des copies de ses arguments et peut utiliser les fonctions de Facile et la base de données, comme le handler. Une réponse qui a attendu une tâche n'est jamais gardée par le cache de la pureté : Facile ne peut pas voir ce que la tâche a lu.

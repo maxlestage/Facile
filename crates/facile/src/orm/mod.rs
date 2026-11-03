@@ -80,8 +80,18 @@ thread_local! {
     static SNAPSHOT: RefCell<Vec<memory::Snapshot>> = const { RefCell::new(Vec::new()) };
 }
 
+/// The address of the database the server opened first: the threads of
+/// Rythme's tasks (`async fn`) open the same one.
+static OPENED: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+/// See [`OPENED`].
+pub fn opened_url() -> Option<&'static str> {
+    OPENED.get().map(String::as_str)
+}
+
 /// Opens this thread's database.
 pub fn open(url: &str) -> Result<(), String> {
+    let _ = OPENED.set(url.to_string());
     let db = if url.starts_with("memory:") || url.is_empty() {
         Db::Memory
     } else if let Some(path) = url.strip_prefix("sqlite://").or_else(|| url.strip_prefix("sqlite:")) {
