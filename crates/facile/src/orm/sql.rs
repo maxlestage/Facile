@@ -304,7 +304,7 @@ mod lite {
 
     pub fn raw(c: &mut Connection, text: &str, params: Vec<Cell>) -> Result<(Vec<String>, Vec<Row>), String> {
         let mut st = c.prepare(text).map_err(|e| e.to_string())?;
-        let names: Vec<String> = st.column_names().iter().map(|s| s.to_string()).collect();
+        let names: Vec<String> = st.column_names().map(|s| s.to_string()).collect();
         let n = names.len();
         let mut out = Vec::new();
         let mut rs = st.query(params_from_iter(params.iter())).map_err(|e| message(e.to_string()))?;

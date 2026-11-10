@@ -124,7 +124,7 @@ fn listener(addr: SocketAddr, reuse_port: bool) -> io::Result<std::net::TcpListe
     if reuse_port {
         return Err(io::Error::new(io::ErrorKind::Unsupported, "SO_REUSEPORT"));
     }
-    socket.set_nodelay(true)?;
+    socket.set_tcp_nodelay(true)?;
     socket.set_nonblocking(true)?;
     socket.bind(&addr.into())?;
     socket.listen(4096)?;

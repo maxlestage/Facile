@@ -25,3 +25,6 @@ The first version of Facile, the web framework of the Rythme language.
   `routes`, `reference`.
 - **The site**, written in Rythme and served by Facile, with its 3D scenes
   and its documentation in French and English.
+- **Dependencies at their latest version**: socket2 0.6, sha2 0.11 and
+  hmac 0.13, signal-hook 0.4, rusqlite 0.41 (SQLite 3.54), tokio-postgres-rustls
+  0.14, webpki-roots 1.0. Facile now needs Rust 1.89 or newer.

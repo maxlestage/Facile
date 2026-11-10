@@ -4,7 +4,7 @@ Facile is the web framework of the [Rythme](https://github.com/maxlestage/Rythme
 
 ## Install
 
-Facile installs with Cargo (Rust 1.85 or newer):
+Facile installs with Cargo (Rust 1.89 or newer):
 
 ```sh
 cargo install --git https://github.com/maxlestage/Facile facile --locked
