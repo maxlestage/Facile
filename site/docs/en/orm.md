@@ -6,7 +6,7 @@ Facile's ORM describes data with **models**, looks for it with **queries** that 
 |---|---|
 | `memory://` (the default) | in memory, shared by the workers: development and tests |
 | `sqlite://app.db` | SQLite, compiled into `facile`: nothing to install |
-| `postgres://user:pass@host/db` | PostgreSQL, over TLS (Heroku Postgres, Neon, Supabase...) |
+| `postgres://user:pass@host/db` | PostgreSQL, over TLS (Heroku Postgres, Supabase...) |
 
 The URL comes from the `DATABASE_URL` variable, or from `database(app, "sqlite://app.db")`.
 

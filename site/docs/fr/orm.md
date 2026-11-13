@@ -6,7 +6,7 @@ L'ORM de Facile décrit les données avec des **modèles**, les cherche avec des
 |---|---|
 | `memory://` (par défaut) | en mémoire, partagée par les workers : développement et tests |
 | `sqlite://app.db` | SQLite, compilé dans `facile` : rien à installer |
-| `postgres://user:mdp@hote/base` | PostgreSQL, en TLS (Heroku Postgres, Neon, Supabase...) |
+| `postgres://user:mdp@hote/base` | PostgreSQL, en TLS (Heroku Postgres, Supabase...) |
 
 L'URL vient de la variable `DATABASE_URL`, ou de `database(app, "sqlite://app.db")`.
 
