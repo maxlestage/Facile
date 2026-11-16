@@ -334,15 +334,19 @@ fn pick(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
 // ----- rows as values ---------------------------------------------------
 
 thread_local! {
-    static SHAPES: RefCell<HashMap<String, Rc<Shape>>> = RefCell::new(HashMap::new());
+    static SHAPES: RefCell<rustc_hash::FxHashMap<String, Rc<Shape>>> = RefCell::default();
 }
 
 fn shape_of(m: &Model) -> Rc<Shape> {
     SHAPES.with(|s| {
-        s.borrow_mut()
-            .entry(m.table.clone())
-            .or_insert_with(|| Rc::new(Shape::new(m.columns().iter().map(|c| Rc::from(c.as_str())).collect())))
-            .clone()
+        let mut s = s.borrow_mut();
+        // Found without copying the name of the table: once per row.
+        if let Some(shape) = s.get(m.table.as_str()) {
+            return shape.clone();
+        }
+        let shape = Rc::new(Shape::new(m.column_names().map(Rc::from).collect()));
+        s.insert(m.table.clone(), shape.clone());
+        shape
     })
 }
 
@@ -368,9 +372,8 @@ fn value_of_cell(it: &Interp, c: &Cell, kind: Option<Kind>) -> Value {
 
 /// A row as a record: `{id: 1, titre: "Lait", fait: false, ...}`.
 pub fn row_value(it: &Interp, m: &Model, row: &[Cell]) -> Value {
-    let cols = m.columns();
-    let vals = row.iter().zip(cols.iter()).map(|(c, col)| value_of_cell(it, c, m.kind_of(col))).collect();
-    Value::Record(Rc::new(Record::with_shape(shape_of(m), vals)))
+    let vals = row.iter().zip(m.column_names()).map(|(c, col)| value_of_cell(it, c, m.kind_of(col)));
+    Value::Record(Rc::new(util::shaped(shape_of(m), vals)))
 }
 
 /// The rows of a query, with their relations when it includes some.
@@ -1004,7 +1007,7 @@ fn db_sql(it: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
             let shape = Rc::new(Shape::new(names.iter().map(|n| Rc::from(n.as_str())).collect()));
             let out = rows
                 .iter()
-                .map(|r| Value::Record(Rc::new(Record::with_shape(shape.clone(), r.iter().map(|c| value_of_cell(it, c, None)).collect()))))
+                .map(|r| Value::Record(Rc::new(util::shaped(shape.clone(), r.iter().map(|c| value_of_cell(it, c, None))))))
                 .collect();
             Ok(it.ok(Value::list(out)))
         }

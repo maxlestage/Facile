@@ -94,13 +94,14 @@ impl Model {
 
     /// The columns: `id`, the fields, then the timestamps.
     pub fn columns(&self) -> Vec<String> {
-        let mut c = vec!["id".to_string()];
-        c.extend(self.fields.iter().map(|f| f.name.clone()));
-        if self.timestamps {
-            c.push("created_at".into());
-            c.push("updated_at".into());
-        }
-        c
+        self.column_names().map(String::from).collect()
+    }
+
+    /// The names of the columns, in the same order, without making texts
+    /// (each row read from the database goes through them).
+    pub fn column_names(&self) -> impl Iterator<Item = &str> {
+        let stamps: &[&'static str] = if self.timestamps { &["created_at", "updated_at"] } else { &[] };
+        std::iter::once("id").chain(self.fields.iter().map(|f| f.name.as_str())).chain(stamps.iter().copied())
     }
 
     /// The kind of a column (`id` and the timestamps included).

@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.1.1 — unreleased
+
+Faster, with the same responses byte for byte (the pages of the site, the
+example and the benchmark compared with 0.1.0). Times measured inside the
+process (`examples/inproc`), medians of 7 interleaved runs, without the cache:
+
+- **Views**: the elements made by `div(...)`, `p(...)`... are known by their
+  shape, without looking their fields up by name; their tag is a text made
+  once, not copied for each element; attributes and texts are escaped in
+  slices, not character by character. A list of 30 items: 32.9 → 22.7 µs
+  (−31 %).
+- **ORM**: the rows read from the database no longer copy the names of the
+  columns and of the table for each row. 20 rows as JSON: 15.3 → 11.1 µs
+  (−27 %).
+- **Small records stay inside their value**: the responses of `json(...)` and
+  `html(...)`, the route parameters and the JSON objects of up to four keys
+  are made without a list to allocate and free. `json({...})`: 543 → 511 ns
+  (−6 %), `/users/:id`: 692 → 648 ns (−6 %), a JSON body read and sent back:
+  1268 → 1144 ns (−10 %).
+- **JSON**: integers are written without the machinery of `fmt` (itoa). 30
+  records as JSON: 6.4 → 5.9 µs (−8 %).
+
 ## 0.1.0 — unreleased
 
 The first version of Facile, the web framework of the Rythme language.

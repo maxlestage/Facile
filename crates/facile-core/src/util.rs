@@ -8,7 +8,7 @@ use rythme::diagnostic::{Diagnostic, Fallible};
 use rythme::interp::Interp;
 use rythme::source::Span;
 use rythme::symbol::Sym;
-use rythme::value::{Record, Value};
+use rythme::value::{Few, Record, Shape, Value};
 
 thread_local! {
     /// Set when the computation of a response read something that its path
@@ -176,6 +176,34 @@ pub fn text(s: impl AsRef<str>) -> Value {
 
 pub fn sym(s: &str) -> Value {
     Value::Symbol(Sym::new(s))
+}
+
+/// A record of `shape` with the values of `vals`, in order: up to four stay
+/// inside the record, without a list to make, copy and free on the way.
+pub fn shaped(shape: Rc<Shape>, vals: impl IntoIterator<Item = Value>) -> Record {
+    match shape.len() {
+        // Nothing to hold, and an empty list costs nothing.
+        0 => Record::with_shape(shape, Vec::new()),
+        1..=4 => {
+            let mut here = [Value::Unit, Value::Unit, Value::Unit, Value::Unit];
+            let mut n = 0;
+            for v in vals.into_iter().take(4) {
+                here[n] = v;
+                n += 1;
+            }
+            Record::taking(shape, &mut here[..n])
+        }
+        _ => Record::with_shape(shape, vals.into_iter().collect()),
+    }
+}
+
+/// Like [`shaped`], for values gathered one by one (`push`) before the
+/// shape is known: up to four stay inside the record, more are moved.
+pub fn gathered(shape: Rc<Shape>, mut vals: Few<4>) -> Record {
+    match &mut vals {
+        Few::Many(many) => Record::with_shape(shape, std::mem::take(many)),
+        Few::Here(..) => Record::taking(shape, &mut vals),
+    }
 }
 
 /// A record from fields written in order.

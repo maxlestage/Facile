@@ -6,7 +6,7 @@
 use rustc_hash::FxHashMap as HashMap;
 use std::rc::Rc;
 
-use rythme::value::{Record, Shape, Value};
+use rythme::value::{Shape, Value};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Segment {
@@ -205,8 +205,8 @@ fn normalize(path: &str) -> &str {
 
 /// The `params` record of a found route.
 pub fn params_record<T>(found: &Found<'_, '_, T>) -> Value {
-    let vals = found.values.iter().map(|v| Value::text(&crate::http::decode(v))).collect();
-    Value::Record(Rc::new(Record::with_shape(found.route.params.clone(), vals)))
+    let vals = found.values.iter().map(|v| Value::text(&crate::http::decode(v)));
+    Value::Record(Rc::new(facile_core::util::shaped(found.route.params.clone(), vals)))
 }
 
 #[cfg(test)]

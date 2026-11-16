@@ -39,7 +39,7 @@ fn missing(m: &Model) -> String {
 }
 
 fn row_of(m: &Model, id: i64, r: &HashMap<String, Cell>) -> Row {
-    m.columns().iter().map(|c| if c == "id" { Cell::Int(id) } else { r.get(c).cloned().unwrap_or(Cell::Null) }).collect()
+    m.column_names().map(|c| if c == "id" { Cell::Int(id) } else { r.get(c).cloned().unwrap_or(Cell::Null) }).collect()
 }
 
 /// The ids of the rows of the query, in its order, after its offset and limit.

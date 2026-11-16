@@ -25,13 +25,34 @@ thread_local! {
 
 /// An element value.
 pub fn element(tag: &str, attrs: Value, children: Vec<Value>) -> Value {
+    element_of(Value::text(tag), attrs, children)
+}
+
+/// An element value whose tag is already a text value.
+fn element_of(tag: Value, attrs: Value, children: Vec<Value>) -> Value {
     let shape = ELEMENT.with(|s| s.clone());
-    Value::Record(Rc::new(Record::with_shape(shape, vec![Value::text(tag), attrs, Value::list(children)])))
+    // Three fields stay inside the record: no list to make and free on the way.
+    Value::Record(Rc::new(Record::taking(shape, &mut [tag, attrs, Value::list(children)])))
 }
 
 /// Whether a record is an element (and not attributes).
 pub fn is_element(r: &Record) -> bool {
-    r.len() == 3 && r.get("tag").is_some() && r.get("children").is_some()
+    made_by_element(r) || (r.len() == 3 && r.get("tag").is_some() && r.get("children").is_some())
+}
+
+/// Whether a record has the shape of the records made by [`element`]:
+/// `tag`, `attrs` and `children`, in this order, known without reading them.
+fn made_by_element(r: &Record) -> bool {
+    ELEMENT.with(|s| Rc::ptr_eq(s, r.shape()))
+}
+
+/// The tag, the attributes and the children of an element.
+fn element_parts(r: &Record) -> (Option<&Value>, Option<&Value>, Option<&Value>) {
+    if made_by_element(r) {
+        (Some(r.at(0)), Some(r.at(1)), Some(r.at(2)))
+    } else {
+        (r.get("tag"), r.get("attrs"), r.get("children"))
+    }
 }
 
 fn is_raw(r: &Record) -> bool {
@@ -60,7 +81,7 @@ pub fn push_children(v: &Value, out: &mut Vec<Value>) {
 }
 
 /// `tag()`, `tag(children)`, `tag(attrs)`, `tag(attrs, children)`.
-fn build(tag: &str, a: &[Value]) -> Value {
+fn build(tag: Value, a: &[Value]) -> Value {
     let empty = || EMPTY.with(|e| e.clone());
     let mut children = Vec::new();
     let attrs = match a {
@@ -86,7 +107,7 @@ fn build(tag: &str, a: &[Value]) -> Value {
             }
         }
     };
-    element(tag, attrs, children)
+    element_of(tag, attrs, children)
 }
 
 fn h(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
@@ -98,7 +119,7 @@ fn h(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
             span,
         ));
     }
-    Ok(build(tag, &a[1..]))
+    Ok(build(a[0].clone(), &a[1..]))
 }
 
 fn raw(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
@@ -124,7 +145,11 @@ macro_rules! tags {
         $(
             #[allow(non_snake_case)]
             fn $name(_: &mut Interp, a: &[Value], _: Span) -> Fallible<Value> {
-                Ok(build(stringify!($name), a))
+                thread_local! {
+                    /// The tag, made once and shared by the elements.
+                    static TAG: Value = Value::text(stringify!($name));
+                }
+                Ok(build(TAG.with(|t| t.clone()), a))
             }
         )*
         pub static TAGS: &[Builtin] = &[
@@ -215,12 +240,26 @@ pub fn render_into(v: &Value, out: &mut String) {
             }
         }
         Value::Record(r) if is_element(r) => {
-            let tag = r.get("tag").map(|t| t.display()).unwrap_or_else(|| "div".into());
+            let (tag, attrs, children) = element_parts(r);
+            let tag: std::borrow::Cow<str> = match tag {
+                Some(Value::Text(t)) => std::borrow::Cow::Borrowed(&**t),
+                Some(t) => t.display().into(),
+                None => "div".into(),
+            };
             out.push('<');
             out.push_str(&tag);
-            if let Some(Value::Record(attrs)) = r.get("attrs") {
+            if let Some(Value::Record(attrs)) = attrs {
                 for (k, x) in attrs.iter() {
                     if k.starts_with("on_") || &**k == "key" {
+                        continue;
+                    }
+                    // A text is written as it is (what `attr_value` gives), without a copy.
+                    if let Value::Text(t) = x {
+                        out.push(' ');
+                        out.push_str(k);
+                        out.push_str("=\"");
+                        escape_html(t, out);
+                        out.push('"');
                         continue;
                     }
                     if let Some(s) = attr_value(k, x) {
@@ -235,10 +274,10 @@ pub fn render_into(v: &Value, out: &mut String) {
                 }
             }
             out.push('>');
-            if VOID.contains(&tag.as_str()) {
+            if VOID.contains(&&*tag) {
                 return;
             }
-            if let Some(c) = r.get("children") {
+            if let Some(c) = children {
                 render_into(c, out);
             }
             out.push_str("</");
@@ -388,4 +427,52 @@ pub fn json_attr(v: &Value) -> String {
 thread_local! {
     /// Islands met while rendering a page: the server adds their script.
     pub static ISLANDS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn attrs(fields: Vec<(&str, Value)>) -> Value {
+        util::record(fields)
+    }
+
+    #[test]
+    fn renders_elements_and_escapes() {
+        let it = Interp::new();
+        let inner = build(Value::text("span"), &[Value::text("a < b & \"c\" 'd' > é")]);
+        let v = build(
+            Value::text("div"),
+            &[
+                attrs(vec![
+                    ("class", Value::text("x\"y<é>")),
+                    ("hidden", Value::Bool(true)),
+                    ("off", Value::Bool(false)),
+                    ("n", Value::Int(3)),
+                    ("on_click", Value::text("ignored")),
+                    ("key", Value::text("ignored")),
+                    ("list", Value::list(vec![Value::text("a"), Value::Unit, Value::text("b")])),
+                    ("opt", it.none()),
+                ]),
+                Value::list(vec![inner, build(Value::text("br"), &[]), Value::Int(7)]),
+            ],
+        );
+        assert_eq!(
+            render(&v),
+            "<div class=\"x&quot;y&lt;é&gt;\" hidden n=\"3\" list=\"a b\"><span>a &lt; b &amp; &quot;c&quot; &#39;d&#39; &gt; é</span><br>7</div>"
+        );
+        assert!(matches!(&v, Value::Record(r) if is_element(r)));
+    }
+
+    #[test]
+    fn elements_written_as_records() {
+        // A record written by hand, in another order, is an element too.
+        let v = attrs(vec![("children", Value::list(vec![Value::text("1 < 2")])), ("attrs", attrs(vec![])), ("tag", Value::text("p"))]);
+        assert!(matches!(&v, Value::Record(r) if is_element(r)));
+        assert_eq!(render(&v), "<p>1 &lt; 2</p>");
+        let mut out = String::new();
+        escape_html("", &mut out);
+        escape_html("<>", &mut out);
+        assert_eq!(out, "&lt;&gt;");
+    }
 }

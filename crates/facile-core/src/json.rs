@@ -88,16 +88,23 @@ pub fn from_json(it: &Interp, j: &Json) -> Value {
 
 /// Escapes a text for HTML (text and attribute values).
 pub fn escape_html(s: &str, out: &mut String) {
-    for c in s.chars() {
-        match c {
-            '&' => out.push_str("&amp;"),
-            '<' => out.push_str("&lt;"),
-            '>' => out.push_str("&gt;"),
-            '"' => out.push_str("&quot;"),
-            '\'' => out.push_str("&#39;"),
-            c => out.push(c),
-        }
+    // The characters to escape are ASCII: the text between them is copied
+    // in one go (cutting at their bytes keeps whole characters).
+    let mut start = 0;
+    for (i, b) in s.bytes().enumerate() {
+        let esc = match b {
+            b'&' => "&amp;",
+            b'<' => "&lt;",
+            b'>' => "&gt;",
+            b'"' => "&quot;",
+            b'\'' => "&#39;",
+            _ => continue,
+        };
+        out.push_str(&s[start..i]);
+        out.push_str(esc);
+        start = i + 1;
     }
+    out.push_str(&s[start..]);
 }
 
 pub fn escaped(s: &str) -> String {
@@ -118,9 +125,8 @@ pub fn write_json(v: &Value, out: &mut String) {
     match v {
         Value::Unit => out.push_str("null"),
         Value::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
-        Value::Int(n) => {
-            let _ = write!(out, "{n}");
-        }
+        // The same digits as `{n}`, without the machinery of `fmt`.
+        Value::Int(n) => out.push_str(itoa::Buffer::new().format(*n)),
         Value::Big(n) => write_str(&n.to_string(), out),
         Value::Float(f) if f.is_finite() => {
             let _ = write!(out, "{f}");
@@ -267,7 +273,7 @@ impl<'de> serde::de::Visitor<'de> for Seed<'_> {
     }
     fn visit_map<A: serde::de::MapAccess<'de>>(self, mut map: A) -> Result<Value, A::Error> {
         let mut keys: Vec<Rc<str>> = Vec::new();
-        let mut vals = Vec::new();
+        let mut vals = rythme::value::Few::<4>::none();
         while let Some(k) = map.next_key::<std::borrow::Cow<'de, str>>()? {
             let v = map.next_value_seed(Seed { it: self.it })?;
             // A key given twice keeps its last value, like JSON parsers do.
@@ -279,7 +285,7 @@ impl<'de> serde::de::Visitor<'de> for Seed<'_> {
                 }
             }
         }
-        Ok(Value::Record(Rc::new(Record::with_shape(shape(keys), vals))))
+        Ok(Value::Record(Rc::new(crate::util::gathered(shape(keys), vals))))
     }
 }
 
@@ -334,5 +340,11 @@ mod tests {
         let mut f = String::new();
         write_json(&Value::Float(2.0), &mut f);
         assert_eq!(f, "2.0");
+        // Integers at the edges, objects of more than four keys, a key given twice.
+        let text = r#"[-9223372036854775808,9223372036854775807,0,-1,{"a":1,"b":2,"c":3,"d":4,"e":5,"a":6},{"x":{}}]"#;
+        let v = parse_json(&it, text.as_bytes()).unwrap();
+        let mut out = String::new();
+        write_json(&v, &mut out);
+        assert_eq!(out, r#"[-9223372036854775808,9223372036854775807,0,-1,{"a":6,"b":2,"c":3,"d":4,"e":5},{"x":{}}]"#);
     }
 }

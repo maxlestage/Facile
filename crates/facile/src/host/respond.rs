@@ -41,7 +41,8 @@ fn same_shape(r: &Record) -> bool {
 
 fn record_of(status: u16, headers: Value, body: Value) -> Value {
     let shape = RESPONSE.with(|s| s.clone());
-    Value::Record(Rc::new(Record::with_shape(shape, vec![Value::Int(status as i64), headers, body])))
+    // Three fields stay inside the record: no list to make and free on the way.
+    Value::Record(Rc::new(Record::taking(shape, &mut [Value::Int(status as i64), headers, body])))
 }
 
 /// A response record.
