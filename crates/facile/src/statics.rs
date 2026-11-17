@@ -92,6 +92,9 @@ impl Statics {
 
     /// The file for this path, if it is one of the served files.
     pub fn find(&self, path: &str) -> Option<Rc<Asset>> {
+        if !self.dev && !path.ends_with('/') {
+            return self.files.get(path).cloned();
+        }
         let path = if path.ends_with('/') { format!("{path}index.html") } else { path.to_string() };
         if !self.dev {
             return self.files.get(&path).cloned();

@@ -18,7 +18,7 @@ use rythme::source::Span;
 use rythme::symbol::Sym;
 use rythme::value::{Record, Shape, Value};
 
-use crate::http::{parse_query, Request};
+use crate::http::{decode, Request};
 
 thread_local! {
     /// The request being answered, while its handler runs.
@@ -59,11 +59,15 @@ fn current<R>(f: &str, span: Span, g: impl FnOnce(&Request) -> R) -> Fallible<R>
     Ok(g(unsafe { &*p }))
 }
 
+/// The fields of `a=1&b=deux`, as `parse_query` reads them, each name and
+/// value decoded straight into its own memory.
 fn query_record(q: &str) -> Value {
     let mut r = Record::new();
-    for (k, v) in parse_query(q) {
+    for p in q.split('&').filter(|p| !p.is_empty()) {
+        let (k, v) = p.split_once('=').unwrap_or((p, ""));
+        let k = decode(k);
         if !k.is_empty() {
-            r.set(Rc::from(k.as_str()), Value::text(&v));
+            r.set(Rc::from(&*k), Value::text(&decode(v)));
         }
     }
     Value::Record(Rc::new(r))
@@ -96,20 +100,19 @@ pub fn request_value(req: &Request, path: &str, params: Value) -> Value {
 }
 
 fn header(it: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
-    let name = text_arg(a, 0, "header", span)?.to_string();
-    let v = current("header", span, |r| r.header(&name).map(|s| s.to_string()))?;
-    Ok(it.option(v.map(|s| Value::text(&s))))
+    let name = text_arg(a, 0, "header", span)?;
+    let v = current("header", span, |r| r.header(name).map(Value::text))?;
+    Ok(it.option(v))
 }
 
 fn cookie(it: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
-    let name = text_arg(a, 0, "cookie", span)?.to_string();
-    let v = current("cookie", span, |r| r.cookie(&name))?;
-    Ok(it.option(v.map(|s| Value::text(&s))))
+    let name = text_arg(a, 0, "cookie", span)?;
+    let v = current("cookie", span, |r| r.cookie_text(name).map(|c| Value::text(&c)))?;
+    Ok(it.option(v))
 }
 
 fn body(_: &mut Interp, _: &[Value], span: Span) -> Fallible<Value> {
-    let v = current("body", span, |r| String::from_utf8_lossy(&r.body).into_owned())?;
-    Ok(Value::text(&v))
+    current("body", span, |r| Value::text(&String::from_utf8_lossy(&r.body)))
 }
 
 fn json(it: &mut Interp, _: &[Value], span: Span) -> Fallible<Value> {
@@ -124,13 +127,11 @@ fn json(it: &mut Interp, _: &[Value], span: Span) -> Fallible<Value> {
 }
 
 fn form(_: &mut Interp, _: &[Value], span: Span) -> Fallible<Value> {
-    let text = current("form", span, |r| String::from_utf8_lossy(&r.body).into_owned())?;
-    Ok(query_record(&text))
+    current("form", span, |r| query_record(&String::from_utf8_lossy(&r.body)))
 }
 
 fn ip(_: &mut Interp, _: &[Value], span: Span) -> Fallible<Value> {
-    let v = current("ip", span, |r| r.client_ip())?;
-    Ok(Value::text(&v))
+    current("ip", span, |r| Value::text(&r.client_ip_text()))
 }
 
 /// The functions in the request record, in the order of its shape.
@@ -182,3 +183,23 @@ pub static ACCESSORS: [Builtin; 6] = [
         "L'adresse du client (la première de X-Forwarded-For derrière un proxy)."
     ),
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn query_records_as_before() {
+        for q in ["", "a=1", "a=1&b=deux%20mots&c=x+y", "a=1&a=2&b", "&&=x&%3D=y&k=%e2%82%ac&=", "a&b=&c=%", "x=1&y=2&x=3&z"] {
+            let mut before = Record::new();
+            for (k, v) in crate::http::parse_query(q) {
+                if !k.is_empty() {
+                    before.set(Rc::from(k.as_str()), Value::text(&v));
+                }
+            }
+            let Value::Record(now) = query_record(q) else { panic!() };
+            let pairs = |r: &Record| r.iter().map(|(k, v)| (k.to_string(), v.display())).collect::<Vec<_>>();
+            assert_eq!(pairs(&now), pairs(&before), "{q}");
+        }
+    }
+}

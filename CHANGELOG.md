@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.1.2 — unreleased
+
+Faster, with the same responses byte for byte (the pages of the site, the
+example and its REST API on memory, SQLite and PostgreSQL, and the benchmark
+compared with 0.1.1). Times measured inside the process, medians of 7
+interleaved runs; `mw.shield()` measured with its rate limit set high:
+
+- **The middlewares of `mw`**: those without a scope no longer compare an
+  empty prefix with the path at each request and on each response (comparing
+  zero bytes at the address of an empty `String` costs about 90 ns on some
+  processors). Behind `mw.shield()`, a response from the cache: 1639 → 306 ns
+  (−81 %); a page of the site's documentation: 2233 → 464 ns (−79 %); the
+  example's REST API: 3606 → 2670 ns (−26 %).
+- **Firewall and robots**: the path and the query are searched once for all
+  the patterns, without copies when there is nothing to decode (the Unicode
+  lowercase is still used for texts that are not ASCII); the user agent is
+  read without a copy. `/static/style.css`: 606 → 48 ns (−92 %), the user
+  agent of Firefox: 94 → 80 ns (−15 %).
+- **Static files**: found without copying their path, their head written
+  without building a response. 164 → 90 ns (−46 %).
+- **`next(req)`, `with_header`, `with_cookie`, `status`**: the body made by
+  Rythme code is given back without a copy, and the content type of JSON,
+  HTML and text without a list to make. A page of 30 kB given back by
+  `next`: 11 µs → 47 ns; the names of headers read once instead of twice
+  (−68 %).
+- **Request ids** written without `format!`: 34 → 8 ns. **Queries and
+  forms** decoded straight into their fields (−15 to −30 %);
+  `req.header(...)` (−33 %), `req.cookie(...)` (−8 %) and the address
+  behind a proxy (−20 %) without intermediate copies.
+
 ## 0.1.1 — unreleased
 
 Faster, with the same responses byte for byte (the pages of the site, the

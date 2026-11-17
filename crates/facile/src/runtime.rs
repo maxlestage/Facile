@@ -18,7 +18,7 @@ use rythme::source::Span;
 use rythme::value::Value;
 
 use crate::host::{chain, request, respond};
-use crate::http::{self, Body, Request, Response};
+use crate::http::{self, Request, Response};
 use crate::natives::Natives;
 use crate::router::{params_record, Pattern, Router};
 use crate::server::Service;
@@ -322,7 +322,7 @@ impl Runtime {
             out.extend_from_slice(b"x-request-id: ");
             match id {
                 Some(i) => out.extend_from_slice(i.as_bytes()),
-                None => out.extend_from_slice(new_id().as_bytes()),
+                None => write_new_id(out),
             }
             out.extend_from_slice(b"\r\n");
         }
@@ -357,11 +357,18 @@ impl Runtime {
             self.finish(req, 304, &[], None, started, out);
             return;
         }
-        let mut r = Response { status: 200, headers: Vec::new(), body: Body::Empty };
-        r.set_header("content-type", asset.content_type);
-        r.set_header("etag", asset.etag.clone());
-        r.set_header("cache-control", asset.cache_control);
-        r.write_head(out);
+        // What `write_head` writes for these three headers, without making the response.
+        for part in [
+            "HTTP/1.1 200 OK\r\ncontent-type: ",
+            asset.content_type,
+            "\r\netag: ",
+            &asset.etag,
+            "\r\ncache-control: ",
+            asset.cache_control,
+            "\r\n",
+        ] {
+            out.extend_from_slice(part.as_bytes());
+        }
         out.extend_from_slice(self.natives.static_headers());
         let gz = asset.gz.as_deref().filter(|_| req.accepts_gzip());
         let body = asset.body.clone();
@@ -448,8 +455,8 @@ fn ends_with_app() -> String {
     )
 }
 
-/// 16 hexadecimal digits, different at each call (not a secret).
-fn new_id() -> String {
+/// Writes 16 hexadecimal digits, different at each call (not a secret).
+fn write_new_id(out: &mut Vec<u8>) {
     thread_local! {
         static STATE: std::cell::Cell<u64> = std::cell::Cell::new(
             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos() as u64).unwrap_or(1)
@@ -462,8 +469,17 @@ fn new_id() -> String {
         x ^= x >> 7;
         x ^= x << 17;
         s.set(x);
-        format!("{x:016x}")
+        out.extend_from_slice(&hex16(x));
     })
+}
+
+/// What `format!("{x:016x}")` writes, without making a `String`.
+fn hex16(x: u64) -> [u8; 16] {
+    let mut hex = [0u8; 16];
+    for (i, d) in hex.iter_mut().enumerate() {
+        *d = b"0123456789abcdef"[(x >> (60 - 4 * i)) as usize & 15];
+    }
+    hex
 }
 
 impl Runtime {
@@ -555,6 +571,16 @@ impl Service for Runtime {
             let _ = stdout.write_all(&self.log);
             let _ = stdout.flush();
             self.log.clear();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn request_ids_in_hexadecimal() {
+        for x in [0, 1, 0xab, 0x0123_4567_89ab_cdef, u64::MAX, 1 << 63, 0xf00d] {
+            assert_eq!(super::hex16(x), format!("{x:016x}").as_bytes());
         }
     }
 }

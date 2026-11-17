@@ -58,9 +58,21 @@ fn typed(status: u16, kind: usize, body: Value) -> Value {
 
 /// A response as the record middlewares see (`next(req)` returns it).
 pub fn to_value(r: &Response) -> Value {
-    let body = String::from_utf8_lossy(r.body.as_slice());
-    let hs = r.headers.iter().map(|(k, v)| Value::list(vec![Value::text(k), Value::text(v)])).collect();
-    record_of(r.status, Value::list(hs), Value::text(&body))
+    // A text made by Rythme code is given back as it is, without a copy.
+    let body = match &r.body {
+        Body::Text(t) => Value::Text(t.clone()),
+        b => Value::text(&String::from_utf8_lossy(b.as_slice())),
+    };
+    // Only the content type of JSON, HTML or text: the list made once.
+    let common = match r.headers.as_slice() {
+        [(k, v)] if k == "content-type" => [JSON, HTML, TEXT].iter().position(|t| v == t),
+        _ => None,
+    };
+    let headers = match common {
+        Some(i) => TYPED.with(|t| t[i].clone()),
+        None => Value::list(r.headers.iter().map(|(k, v)| Value::list(vec![Value::text(k), Value::text(v)])).collect()),
+    };
+    record_of(r.status, headers, body)
 }
 
 const HTML: &str = "text/html; charset=utf-8";
@@ -129,7 +141,11 @@ pub fn from_value(v: &Value) -> Response {
                         for h in hs.iter() {
                             if let Value::List(kv) = h {
                                 if let (Some(k), Some(v)) = (kv.get(0), kv.get(1)) {
-                                    let (k, v) = (k.display().to_ascii_lowercase(), v.display());
+                                    let k = match k {
+                                        Value::Text(t) => t.to_ascii_lowercase(),
+                                        k => k.display().to_ascii_lowercase(),
+                                    };
+                                    let v = v.display();
                                     // A line break would start another header (response splitting).
                                     if k.is_empty() || k.contains(['\r', '\n', ':', ' ']) || v.contains(['\r', '\n']) {
                                         continue;
@@ -399,3 +415,41 @@ pub static RESPOND: &[Builtin] = &[
         "A JSON error: `problem(422, \"le titre manque\")` gives `{\"error\": \"le titre manque\"}`.",
         "Une erreur JSON : `problem(422, \"le titre manque\")` donne `{\"error\": \"le titre manque\"}`."),
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// What `to_value` made before it shared the body and the common headers.
+    fn to_value_before(r: &Response) -> Value {
+        let body = String::from_utf8_lossy(r.body.as_slice());
+        let hs = r.headers.iter().map(|(k, v)| Value::list(vec![Value::text(k), Value::text(v)])).collect();
+        record_of(r.status, Value::list(hs), Value::text(&body))
+    }
+
+    #[test]
+    fn responses_seen_by_middlewares_as_before() {
+        let text = |s: &str| Body::Text(s.into());
+        let ct = |t: &'static str| (HeaderText::Borrowed("content-type"), HeaderText::Borrowed(t));
+        let cases = [
+            Response { status: 200, headers: vec![ct(JSON)], body: text("{\"a\":1}") },
+            Response { status: 404, headers: vec![ct(HTML)], body: text("<p>é</p>") },
+            Response { status: 201, headers: vec![ct(TEXT)], body: Body::Bytes(b"ok \xff".to_vec()) },
+            Response { status: 200, headers: vec![ct("text/css")], body: Body::Static(b"a{}") },
+            Response { status: 303, headers: vec![(HeaderText::Borrowed("location"), HeaderText::Borrowed("/"))], body: Body::Empty },
+            Response {
+                status: 200,
+                headers: vec![ct(JSON), (HeaderText::Owned("set-cookie".into()), HeaderText::Owned("a=b; Path=/".into()))],
+                body: text(""),
+            },
+            Response::empty(204),
+        ];
+        for r in &cases {
+            let (now, before) = (to_value(r), to_value_before(r));
+            assert!(now.equals(&before), "{} / {}", now.repr(), before.repr());
+            let (a, b) = (from_value(&now), from_value(&before));
+            assert_eq!((a.status, a.body.as_slice()), (b.status, b.body.as_slice()));
+            assert_eq!(a.headers, b.headers);
+        }
+    }
+}

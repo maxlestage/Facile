@@ -34,6 +34,16 @@ struct Native {
     scope: String,
 }
 
+impl Native {
+    /// Whether it applies to this path. Most have no scope: that is known
+    /// without comparing (comparing zero bytes at the address of an empty
+    /// `String` calls `memcmp`, which costs about 90 ns on some processors).
+    #[inline]
+    fn applies(&self, path: &str) -> bool {
+        self.scope.is_empty() || path.starts_with(self.scope.as_str())
+    }
+}
+
 /// The native middlewares of an application, ready to run.
 #[derive(Default)]
 pub struct Natives {
@@ -184,7 +194,7 @@ impl Natives {
     pub fn before(&self, req: &Request, production: bool) -> Option<Response> {
         let path = req.path();
         for n in &self.list {
-            if !path.starts_with(&n.scope) {
+            if !n.applies(path) {
                 continue;
             }
             match &n.kind {
@@ -207,7 +217,7 @@ impl Natives {
                     }
                 }
                 Kind::RateLimit { per_minute, id } => {
-                    if let Some(wait) = limited(*id, *per_minute, &req.client_ip()) {
+                    if let Some(wait) = limited(*id, *per_minute, &req.client_ip_text()) {
                         let mut r = Response::json(429, "{\"error\":\"too many requests\"}");
                         r.set_header("retry-after", wait.to_string());
                         return Some(r);
@@ -272,7 +282,7 @@ impl Natives {
     pub fn dynamic_headers(&self, req: &Request, out: &mut Vec<u8>) {
         let path = req.path();
         for n in &self.list {
-            if !path.starts_with(&n.scope) {
+            if !n.applies(path) {
                 continue;
             }
             match &n.kind {
@@ -368,12 +378,71 @@ const WAF_PATTERNS: &[&str] = &[
     "\0",
 ];
 
+/// Texts to look for, all in lowercase ASCII, with which of them start with
+/// each byte: one pass over the text finds them all, without the cost of
+/// one search (and its calls to `memcmp`) per pattern.
+struct Needles {
+    list: &'static [&'static str],
+    first: [u64; 256],
+}
+
+impl Needles {
+    const fn new(list: &'static [&'static str]) -> Needles {
+        assert!(list.len() <= 64);
+        let mut first = [0u64; 256];
+        let mut i = 0;
+        while i < list.len() {
+            let p = list[i].as_bytes();
+            let mut j = 0;
+            while j < p.len() {
+                assert!(p[j].is_ascii() && !p[j].is_ascii_uppercase());
+                j += 1;
+            }
+            first[p[0] as usize] |= 1 << i;
+            i += 1;
+        }
+        Needles { list, first }
+    }
+
+    /// Whether one of them is in `text`: what `text.contains(p)` tells for
+    /// each, or `text.to_ascii_lowercase().contains(p)` with `fold`.
+    fn found_in(&self, text: &[u8], fold: bool) -> bool {
+        let low = |x: u8| if fold { x.to_ascii_lowercase() } else { x };
+        for (i, &b) in text.iter().enumerate() {
+            let mut m = self.first[low(b) as usize];
+            while m != 0 {
+                let p = self.list[m.trailing_zeros() as usize].as_bytes();
+                m &= m - 1;
+                if let Some(t) = text.get(i..i + p.len()) {
+                    if t.iter().zip(p).all(|(x, y)| low(*x) == *y) {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
+}
+
+static WAF: Needles = Needles::new(WAF_PATTERNS);
+
+/// Whether the path and the query hold an attack.
+fn waf_refuses(target: &str) -> bool {
+    // Decoded twice: `%252e%252e` hides `..` from one decoding.
+    let once = crate::http::decode(target);
+    let twice = crate::http::decode(&once);
+    if twice.is_ascii() {
+        // Lowercase ASCII is all `to_lowercase` would change.
+        WAF.found_in(twice.as_bytes(), true)
+    } else {
+        // Some other letters become ASCII ones in lowercase (the Kelvin sign is `k`).
+        WAF.found_in(twice.to_lowercase().as_bytes(), false)
+    }
+}
+
 /// A web application firewall on the path and the query.
 fn waf(req: &Request) -> Option<Response> {
-    let target = crate::http::percent_decode(req.target());
-    // Decoded twice: `%252e%252e` hides `..` from one decoding.
-    let target = crate::http::percent_decode(&target).to_lowercase();
-    WAF_PATTERNS.iter().any(|p| target.contains(p)).then(|| Response::json(403, "{\"error\":\"request refused by the firewall\"}"))
+    waf_refuses(req.target()).then(|| Response::json(403, "{\"error\":\"request refused by the firewall\"}"))
 }
 
 const BOT_PATHS: &[&str] = &[
@@ -403,13 +472,24 @@ const BOT_PATHS: &[&str] = &[
 const BOT_AGENTS: &[&str] =
     &["sqlmap", "nikto", "nmap", "masscan", "zgrab", "nuclei", "acunetix", "wpscan", "dirbuster", "gobuster", "nessus", "fimap", "havij"];
 
+static BOTS: Needles = Needles::new(BOT_AGENTS);
+
+/// `path.to_ascii_lowercase().starts_with(prefix)`, without the copy.
+fn starts_with_lower(path: &[u8], prefix: &str) -> bool {
+    path.get(..prefix.len()).is_some_and(|p| p.eq_ignore_ascii_case(prefix.as_bytes()))
+}
+
+/// `path.to_ascii_lowercase().ends_with(suffix)`, without the copy.
+fn ends_with_lower(path: &[u8], suffix: &str) -> bool {
+    path.len() >= suffix.len() && path[path.len() - suffix.len()..].eq_ignore_ascii_case(suffix.as_bytes())
+}
+
 fn is_bot(req: &Request) -> bool {
-    let path = req.path().to_ascii_lowercase();
-    if BOT_PATHS.iter().any(|p| path.starts_with(p)) || path.ends_with(".php") || path.ends_with(".asp") || path.ends_with(".aspx") {
+    let path = req.path().as_bytes();
+    if BOT_PATHS.iter().any(|p| starts_with_lower(path, p)) || [".php", ".asp", ".aspx"].iter().any(|e| ends_with_lower(path, e)) {
         return true;
     }
-    let ua = req.header("user-agent").unwrap_or("").to_ascii_lowercase();
-    BOT_AGENTS.iter().any(|b| ua.contains(b))
+    BOTS.found_in(req.header("user-agent").unwrap_or("").as_bytes(), true)
 }
 
 // ----- the rate limit, shared by the workers ---------------------------
@@ -498,6 +578,144 @@ mod tests {
         assert_eq!(base64_decode("YWRhOnNlY3JldA==").unwrap(), b"ada:secret");
         assert_eq!(base64_decode("YQ").unwrap(), b"a");
         assert!(base64_decode("@@").is_none());
+    }
+
+    /// The firewall and the robot check as they were written before their
+    /// one-pass search: both must refuse exactly the same requests.
+    fn waf_before(target: &str) -> bool {
+        let target = crate::http::percent_decode(target);
+        let target = crate::http::percent_decode(&target).to_lowercase();
+        WAF_PATTERNS.iter().any(|p| target.contains(p))
+    }
+
+    fn bot_before(path: &str, ua: &str) -> bool {
+        let path = path.to_ascii_lowercase();
+        if BOT_PATHS.iter().any(|p| path.starts_with(p)) || path.ends_with(".php") || path.ends_with(".asp") || path.ends_with(".aspx") {
+            return true;
+        }
+        let ua = ua.to_ascii_lowercase();
+        BOT_AGENTS.iter().any(|b| ua.contains(b))
+    }
+
+    fn request(target: &str, ua: Option<&str>) -> Request {
+        let mut head = format!("GET {target} HTTP/1.1\r\n");
+        let mut r = Request::default();
+        r.method = (0, 3);
+        r.target = (4, 4 + target.len() as u32);
+        r.path_end = r.target.0 + target.find('?').unwrap_or(target.len()) as u32;
+        if let Some(ua) = ua {
+            let n = head.len() as u32;
+            head.push_str("User-Agent: ");
+            head.push_str(ua);
+            r.headers.push(((n, n + 10), (n + 12, n + 12 + ua.len() as u32)));
+            head.push_str("\r\n");
+        }
+        r.head = head.into_bytes();
+        r
+    }
+
+    const TARGETS: &[&str] = &[
+        "/",
+        "/json",
+        "/static/style.css",
+        "/users/42?onglet=profil&page=2",
+        "/?q=union+select+1",
+        "/?q=UNION%20SELECT",
+        "/?q=Union%2520All%2520Select",
+        "/a/%252e%252e/etc",
+        "/../etc/passwd",
+        "/..%5Cwindows",
+        "/?x=%3CScRiPt%3E",
+        "/?x=%3Csvg/onload=1",
+        "/?u=JavaScript:alert(1)",
+        "/?x=${jndi:ldap://x}",
+        "/?x=%24%7Benv:HOME%7D",
+        "/?c=1;cat%20/etc/hosts",
+        "/?c=a|bash",
+        "/?c=%00",
+        "/?q=benchmar\u{212A}(1)",
+        "/?q=BENCHMARK(1)",
+        "/?q=\u{130}nformation_schema",
+        "/?q=\u{130}NFORMATION_SCHEMA",
+        "/?q=information_schem",
+        "/?q=' or '1'='1",
+        "/?q=%27%20OR%201=1",
+        "/?q=x or 1=1--",
+        "/?q=pg_sleep(5)",
+        "/?q=waitfor%20delay",
+        "/?q=; rm -rf /",
+        "/?q=$(curl x)",
+        "/?q=%2",
+        "/?q=%",
+        "/caf\u{e9}/cr\u{e8}me",
+        "/\u{1F600}?drop%20table",
+        "/C:\\Windows",
+        "/proc/self/environ",
+        "/document.cookie",
+        "/onerror=",
+        "/ONLOAD=",
+        "/<iframe",
+        "/xp_cmdshell",
+        "/sleep",
+        "/sleep(",
+        "/..",
+        "/.",
+    ];
+
+    #[test]
+    fn firewall_refuses_what_it_refused() {
+        for t in TARGETS {
+            assert_eq!(waf_refuses(t), waf_before(t), "{t}");
+            assert_eq!(waf(&request(t, None)).is_some(), waf_before(t), "{t}");
+        }
+        assert!(waf_refuses("/?q=UNION%20SELECT"));
+        assert!(waf_refuses("/?q=benchmar\u{212A}(1)"));
+        assert!(!waf_refuses("/static/style.css"));
+    }
+
+    #[test]
+    fn robots_are_the_same() {
+        // `starts_with_lower` reads the paths as written: in lowercase.
+        assert!(BOT_PATHS.iter().all(|p| !p.bytes().any(|b| b.is_ascii_uppercase())));
+        let paths = [
+            "/",
+            "/.env",
+            "/.ENV",
+            "/.git/config",
+            "/WP-Admin/",
+            "/index.php",
+            "/INDEX.PHP",
+            "/a.asp",
+            "/a.AspX",
+            "/x.aspx/",
+            "/hnap1",
+            "/HNAP1",
+            "/owa",
+            "/owa/",
+            "/solr/x",
+            "/php",
+            "/caf\u{e9}.php",
+            "/\u{e9}",
+            "/p",
+            "/.as",
+        ];
+        let agents = [
+            None,
+            Some(""),
+            Some("Mozilla/5.0 (X11; Linux x86_64; rv:132.0) Gecko/20100101 Firefox/132.0"),
+            Some("sqlmap/1.7"),
+            Some("Mozilla/5.0 (compatible; Nmap Scripting Engine)"),
+            Some("NUCLEI"),
+            Some("gobuste"),
+            Some("Mozilla/5.0 zgrab/0.x"),
+            Some("caf\u{e9} havij"),
+            Some("fimap"),
+        ];
+        for p in paths {
+            for ua in agents {
+                assert_eq!(is_bot(&request(p, ua)), bot_before(p, ua.unwrap_or("")), "{p} {ua:?}");
+            }
+        }
     }
 
     #[test]

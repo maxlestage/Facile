@@ -73,25 +73,35 @@ impl Request {
     }
 
     pub fn cookie(&self, name: &str) -> Option<String> {
+        self.cookie_text(name).map(std::borrow::Cow::into_owned)
+    }
+
+    /// Like `cookie`, without a copy when there is nothing to decode.
+    pub fn cookie_text(&self, name: &str) -> Option<std::borrow::Cow<'_, str>> {
         let all = self.header("cookie")?;
         all.split(';').find_map(|c| {
             let (k, v) = c.split_once('=')?;
-            (k.trim() == name).then(|| percent_decode(v.trim().trim_matches('"')))
+            (k.trim() == name).then(|| decode(v.trim().trim_matches('"')))
         })
     }
 
     /// The client's address: the first of `X-Forwarded-For` behind a proxy
     /// (Heroku's router sets it), the socket's otherwise.
     pub fn client_ip(&self) -> String {
+        self.client_ip_text().into_owned()
+    }
+
+    /// Like `client_ip`, without a copy of `X-Forwarded-For`.
+    pub fn client_ip_text(&self) -> std::borrow::Cow<'_, str> {
         if let Some(f) = self.header("x-forwarded-for") {
             if let Some(first) = f.split(',').next() {
                 let first = first.trim();
                 if !first.is_empty() {
-                    return first.to_string();
+                    return std::borrow::Cow::Borrowed(first);
                 }
             }
         }
-        self.peer.map(|p| p.to_string()).unwrap_or_else(|| "0.0.0.0".into())
+        std::borrow::Cow::Owned(self.peer.map(|p| p.to_string()).unwrap_or_else(|| "0.0.0.0".into()))
     }
 
     pub fn accepts_gzip(&self) -> bool {
