@@ -93,20 +93,61 @@ impl Request {
 
     /// Like `client_ip`, without a copy of `X-Forwarded-For`.
     pub fn client_ip_text(&self) -> std::borrow::Cow<'_, str> {
-        if let Some(f) = self.header("x-forwarded-for") {
-            if let Some(first) = f.split(',').next() {
-                let first = first.trim();
-                if !first.is_empty() {
-                    return std::borrow::Cow::Borrowed(first);
-                }
-            }
+        match self.forwarded_for() {
+            Some(first) => std::borrow::Cow::Borrowed(first),
+            None => std::borrow::Cow::Owned(self.peer.map(|p| p.to_string()).unwrap_or_else(|| "0.0.0.0".into())),
         }
-        std::borrow::Cow::Owned(self.peer.map(|p| p.to_string()).unwrap_or_else(|| "0.0.0.0".into()))
+    }
+
+    /// Gives `f` what `client_ip_text` gives, without making a `String` for
+    /// an IPv4 socket address (the rate limit reads it at each request).
+    pub fn with_client_ip<R>(&self, f: impl FnOnce(&str) -> R) -> R {
+        match (self.forwarded_for(), self.peer) {
+            (Some(first), _) => f(first),
+            (None, Some(std::net::IpAddr::V4(a))) => {
+                let mut buf = [0u8; 15];
+                let n = write_ipv4(a, &mut buf);
+                debug_assert!(buf[..n].iter().all(|b| b.is_ascii_digit() || *b == b'.'));
+                // SAFETY: `write_ipv4` writes only ASCII digits and dots.
+                f(unsafe { std::str::from_utf8_unchecked(&buf[..n]) })
+            }
+            (None, Some(p)) => f(&p.to_string()),
+            (None, None) => f("0.0.0.0"),
+        }
+    }
+
+    /// The first address of `X-Forwarded-For`, when there is one.
+    fn forwarded_for(&self) -> Option<&str> {
+        let first = self.header("x-forwarded-for")?.split(',').next()?.trim();
+        (!first.is_empty()).then_some(first)
     }
 
     pub fn accepts_gzip(&self) -> bool {
         self.header("accept-encoding").is_some_and(|e| e.contains("gzip"))
     }
+}
+
+/// Writes `a.b.c.d` as `Ipv4Addr`'s `Display` does, without `fmt`: the
+/// number of bytes written.
+fn write_ipv4(a: std::net::Ipv4Addr, buf: &mut [u8; 15]) -> usize {
+    let mut n = 0;
+    for (i, o) in a.octets().into_iter().enumerate() {
+        if i > 0 {
+            buf[n] = b'.';
+            n += 1;
+        }
+        if o >= 100 {
+            buf[n] = b'0' + o / 100;
+            n += 1;
+        }
+        if o >= 10 {
+            buf[n] = b'0' + o / 10 % 10;
+            n += 1;
+        }
+        buf[n] = b'0' + o % 10;
+        n += 1;
+    }
+    n
 }
 
 /// A response body: shared bytes are given again without a copy.
@@ -332,6 +373,19 @@ pub fn http_date(secs: u64) -> String {
     out
 }
 
+/// Whether a header value holds a line break (`\r` or `\n`), which would
+/// start another header. Every byte is read, without stopping at the first
+/// one found: the compiler then compares them 16 or 32 at a time.
+pub fn breaks_line(s: &str) -> bool {
+    s.bytes().fold(false, |found, b| found | (b == b'\r') | (b == b'\n'))
+}
+
+/// Whether a header name holds a line break, a `:` or a space (read like
+/// `breaks_line`).
+pub fn bad_in_name(s: &str) -> bool {
+    s.bytes().fold(false, |found, b| found | (b == b'\r') | (b == b'\n') | (b == b':') | (b == b' '))
+}
+
 /// `%41` and `+` in a URL part, as text.
 pub fn percent_decode(s: &str) -> String {
     decode(s).into_owned()
@@ -438,6 +492,55 @@ mod tests {
     fn dates() {
         assert_eq!(http_date(784111777), "Sun, 06 Nov 1994 08:49:37 GMT");
         assert_eq!(http_date(0), "Thu, 01 Jan 1970 00:00:00 GMT");
+    }
+
+    #[test]
+    fn ipv4_as_display_writes_it() {
+        let mut buf = [0u8; 15];
+        for a in [[0, 0, 0, 0], [127, 0, 0, 1], [255, 255, 255, 255], [10, 9, 99, 100], [1, 20, 199, 250], [203, 0, 113, 7]] {
+            let ip = std::net::Ipv4Addr::from(a);
+            let n = write_ipv4(ip, &mut buf);
+            assert_eq!(&buf[..n], ip.to_string().as_bytes());
+        }
+        for x in (0..=u32::MAX).step_by(65_521) {
+            let ip = std::net::Ipv4Addr::from(x);
+            let n = write_ipv4(ip, &mut buf);
+            assert_eq!(&buf[..n], ip.to_string().as_bytes());
+        }
+    }
+
+    #[test]
+    fn client_ip_with_and_without_a_copy() {
+        let peers = [None, Some("127.0.0.1"), Some("10.0.0.255"), Some("::1"), Some("::ffff:1.2.3.4"), Some("2001:db8::7")];
+        let forwarded = [None, Some("203.0.113.7"), Some(" 203.0.113.7 , 10.0.0.1"), Some(""), Some(" , 1.1.1.1"), Some("x")];
+        for peer in peers {
+            for xff in forwarded {
+                let mut head = String::from("GET / HTTP/1.1\r\n");
+                let mut r = Request::default();
+                if let Some(v) = xff {
+                    let n = head.len() as u32;
+                    head.push_str("X-Forwarded-For: ");
+                    head.push_str(v);
+                    r.headers.push(((n, n + 15), (n + 17, n + 17 + v.len() as u32)));
+                    head.push_str("\r\n");
+                }
+                r.head = head.into_bytes();
+                r.peer = peer.map(|p| p.parse().unwrap());
+                let text = r.client_ip_text().into_owned();
+                assert_eq!(r.with_client_ip(|s| s.to_string()), text, "{peer:?} {xff:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn line_breaks_as_contains_finds_them() {
+        let texts =
+            ["", "a", "\r", "\n", "x\r\ny", "session=abc; Path=/; HttpOnly", "a:b", "a b", "\u{e9}\u{d}", "\u{10d}\u{10a}", "\u{2028}"];
+        let long: Vec<String> = (0..80).map(|i| format!("{}\n{}", "v".repeat(i), "w".repeat(80 - i))).collect();
+        for t in texts.iter().copied().chain(long.iter().map(|s| s.as_str())) {
+            assert_eq!(breaks_line(t), t.contains(['\r', '\n']), "{t:?}");
+            assert_eq!(bad_in_name(t), t.contains(['\r', '\n', ':', ' ']), "{t:?}");
+        }
     }
 
     #[test]

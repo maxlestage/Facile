@@ -7,11 +7,16 @@ use super::model::Model;
 use super::query::{keeps, order_cells, Query};
 use super::{Cell, Row};
 
+/// A row: its cells by column. The names are those of the model's columns,
+/// never the client's: hashed with `FxHash` (each row read looks each of its
+/// columns up).
+type Cells = rustc_hash::FxHashMap<String, Cell>;
+
 #[derive(Clone, Default)]
 pub struct Table {
     columns: Vec<String>,
     next_id: i64,
-    rows: BTreeMap<i64, HashMap<String, Cell>>,
+    rows: BTreeMap<i64, Cells>,
 }
 
 pub type Snapshot = HashMap<String, Table>;
@@ -38,7 +43,7 @@ fn missing(m: &Model) -> String {
     )
 }
 
-fn row_of(m: &Model, id: i64, r: &HashMap<String, Cell>) -> Row {
+fn row_of(m: &Model, id: i64, r: &Cells) -> Row {
     m.column_names().map(|c| if c == "id" { Cell::Int(id) } else { r.get(c).cloned().unwrap_or(Cell::Null) }).collect()
 }
 
@@ -113,7 +118,7 @@ pub fn insert(m: &Model, cols: &[String], cells: Vec<Cell>) -> Result<Row, Strin
     let t = s.get_mut(&m.table).ok_or_else(|| missing(m))?;
     let id = t.next_id;
     t.next_id += 1;
-    let r: HashMap<String, Cell> = cols.iter().cloned().zip(cells).collect();
+    let r: Cells = cols.iter().cloned().zip(cells).collect();
     let row = row_of(m, id, &r);
     t.rows.insert(id, r);
     Ok(row)

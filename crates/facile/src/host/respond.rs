@@ -147,7 +147,7 @@ pub fn from_value(v: &Value) -> Response {
                                     };
                                     let v = v.display();
                                     // A line break would start another header (response splitting).
-                                    if k.is_empty() || k.contains(['\r', '\n', ':', ' ']) || v.contains(['\r', '\n']) {
+                                    if k.is_empty() || crate::http::bad_in_name(&k) || crate::http::breaks_line(&v) {
                                         continue;
                                     }
                                     headers.push((HeaderText::Owned(k), HeaderText::Owned(v)));
@@ -268,7 +268,7 @@ fn with_header(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
             span,
         ));
     }
-    if value.contains(['\r', '\n']) {
+    if crate::http::breaks_line(&value) {
         return Err(error(
             "with_header",
             tr("a header value cannot hold a line break", "une valeur d'en-tête ne peut pas contenir de retour à la ligne"),

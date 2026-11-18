@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.1.3 — unreleased
+
+Faster, with the same responses byte for byte (the pages of the site, the
+example and its REST API on memory, SQLite and PostgreSQL, and the benchmark
+compared with 0.1.2; only the seconds of `Retry-After` follow the clock).
+Times measured inside the process, medians of 7 interleaved runs;
+`mw.shield()` measured with its rate limit set high:
+
+- **The rate limit** reads the address of the socket without `format!`, and
+  an address already counted without making its `String` (the windows are
+  still hashed with SipHash: the addresses come from the clients). Behind
+  `mw.shield()`, a page of the site from the cache: 488 → 414 ns (−15 %), a
+  JSON response: 309 → 242 ns (−22 %).
+- **Robots**: the user agent is searched by the first two bytes of the
+  patterns instead of the first one, and a path is only compared with the
+  prefixes whose second byte it has (30 to 60 ns → 2 to 10 ns). **Firewall**:
+  a target with nothing to decode is not searched a second time.
+- Together, behind `mw.shield()`: a page of the documentation from the cache
+  564 → 376 ns (−33 %), `/static/css/site.css` 674 → 445 ns (−34 %), a
+  request behind a proxy (`X-Forwarded-For`) 314 → 270 ns (−14 %), a JSON
+  response 308 → 198 ns (−36 %), with the user agent of Firefox 421 → 289 ns
+  (−31 %).
+- **ORM**: the shape of the records and the kind of each column found once
+  per query instead of once per row; the rows of `memory://` keep their
+  cells in a map hashed with FxHash (their keys are the model's columns,
+  never the client's). **JSON**: texts are looked at 8 bytes at a time for
+  what needs escaping (a text of 125 bytes: 86 → 22 ns). 30 rows as JSON:
+  19.0 → 15.9 µs (−16 %); the example's REST API: 2735 → 2429 ns (−11 %).
+- **Headers** given by the application are checked for line breaks reading
+  all their bytes at once instead of character by character: a response
+  given `with_cookie` then `with_header` behind a middleware written in
+  Rythme, 3594 → 3360 ns (−7 %).
+
 ## 0.1.2 — unreleased
 
 Faster, with the same responses byte for byte (the pages of the site, the

@@ -217,7 +217,7 @@ impl Natives {
                     }
                 }
                 Kind::RateLimit { per_minute, id } => {
-                    if let Some(wait) = limited(*id, *per_minute, &req.client_ip_text()) {
+                    if let Some(wait) = req.with_client_ip(|ip| limited(*id, *per_minute, ip)) {
                         let mut r = Response::json(429, "{\"error\":\"too many requests\"}");
                         r.set_header("retry-after", wait.to_string());
                         return Some(r);
@@ -379,17 +379,27 @@ const WAF_PATTERNS: &[&str] = &[
 ];
 
 /// Texts to look for, all in lowercase ASCII, with which of them start with
-/// each byte: one pass over the text finds them all, without the cost of
-/// one search (and its calls to `memcmp`) per pattern.
+/// each byte and which have each byte second: one pass over the text finds
+/// them all, without the cost of one search (and its calls to `memcmp`)
+/// per pattern, and a pattern is only compared where its first two bytes are.
 struct Needles {
     list: &'static [&'static str],
     first: [u64; 256],
+    /// The patterns whose second byte is this one, and those of one byte.
+    second: [u64; 256],
+    /// `first` and `second` of the byte in lowercase, for the search without case.
+    first_folded: [u64; 256],
+    second_folded: [u64; 256],
+    /// The patterns of one byte: the only ones that can start at the last byte.
+    short: u64,
 }
 
 impl Needles {
     const fn new(list: &'static [&'static str]) -> Needles {
         assert!(list.len() <= 64);
         let mut first = [0u64; 256];
+        let mut second = [0u64; 256];
+        let mut short = 0u64;
         let mut i = 0;
         while i < list.len() {
             let p = list[i].as_bytes();
@@ -399,24 +409,56 @@ impl Needles {
                 j += 1;
             }
             first[p[0] as usize] |= 1 << i;
+            if p.len() == 1 {
+                short |= 1 << i;
+                let mut b = 0;
+                while b < 256 {
+                    second[b] |= 1 << i;
+                    b += 1;
+                }
+            } else {
+                second[p[1] as usize] |= 1 << i;
+            }
             i += 1;
         }
-        Needles { list, first }
+        let mut first_folded = [0u64; 256];
+        let mut second_folded = [0u64; 256];
+        let mut b = 0;
+        while b < 256 {
+            let low = (b as u8).to_ascii_lowercase() as usize;
+            first_folded[b] = first[low];
+            second_folded[b] = second[low];
+            b += 1;
+        }
+        Needles { list, first, second, first_folded, second_folded, short }
     }
 
     /// Whether one of them is in `text`: what `text.contains(p)` tells for
     /// each, or `text.to_ascii_lowercase().contains(p)` with `fold`.
     fn found_in(&self, text: &[u8], fold: bool) -> bool {
+        let (first, second) = if fold { (&self.first_folded, &self.second_folded) } else { (&self.first, &self.second) };
+        let Some(&last) = text.last() else {
+            return false;
+        };
+        for (i, w) in text.windows(2).enumerate() {
+            let m = first[w[0] as usize] & second[w[1] as usize];
+            if m != 0 && self.starts_at(text, i, m, fold) {
+                return true;
+            }
+        }
+        let m = first[last as usize] & self.short;
+        m != 0 && self.starts_at(text, text.len() - 1, m, fold)
+    }
+
+    /// Whether one of the patterns of the mask `m` starts at `i`.
+    fn starts_at(&self, text: &[u8], i: usize, mut m: u64, fold: bool) -> bool {
         let low = |x: u8| if fold { x.to_ascii_lowercase() } else { x };
-        for (i, &b) in text.iter().enumerate() {
-            let mut m = self.first[low(b) as usize];
-            while m != 0 {
-                let p = self.list[m.trailing_zeros() as usize].as_bytes();
-                m &= m - 1;
-                if let Some(t) = text.get(i..i + p.len()) {
-                    if t.iter().zip(p).all(|(x, y)| low(*x) == *y) {
-                        return true;
-                    }
+        while m != 0 {
+            let p = self.list[m.trailing_zeros() as usize].as_bytes();
+            m &= m - 1;
+            if let Some(t) = text.get(i..i + p.len()) {
+                if t.iter().zip(p).all(|(x, y)| low(*x) == *y) {
+                    return true;
                 }
             }
         }
@@ -430,7 +472,11 @@ static WAF: Needles = Needles::new(WAF_PATTERNS);
 fn waf_refuses(target: &str) -> bool {
     // Decoded twice: `%252e%252e` hides `..` from one decoding.
     let once = crate::http::decode(target);
-    let twice = crate::http::decode(&once);
+    // A text with nothing to decode is given back as it is: no second search.
+    let twice = match &once {
+        std::borrow::Cow::Borrowed(t) => std::borrow::Cow::Borrowed(*t),
+        std::borrow::Cow::Owned(o) => crate::http::decode(o),
+    };
     if twice.is_ascii() {
         // Lowercase ASCII is all `to_lowercase` would change.
         WAF.found_in(twice.as_bytes(), true)
@@ -474,6 +520,32 @@ const BOT_AGENTS: &[&str] =
 
 static BOTS: Needles = Needles::new(BOT_AGENTS);
 
+/// For each byte, the robots' paths whose second byte is that byte in
+/// lowercase: a path is only compared with the prefixes that can start it.
+static BOT_PATHS_BY_SECOND: [u32; 256] = by_second(BOT_PATHS);
+
+const BOT_EXTENSIONS: &[&str] = &[".php", ".asp", ".aspx"];
+
+const fn by_second(list: &[&str]) -> [u32; 256] {
+    assert!(list.len() <= 32);
+    let mut m = [0u32; 256];
+    let mut c = 0;
+    while c < 256 {
+        let low = (c as u8).to_ascii_lowercase();
+        let mut i = 0;
+        while i < list.len() {
+            let p = list[i].as_bytes();
+            assert!(p.len() >= 2);
+            if p[1] == low {
+                m[c] |= 1 << i;
+            }
+            i += 1;
+        }
+        c += 1;
+    }
+    m
+}
+
 /// `path.to_ascii_lowercase().starts_with(prefix)`, without the copy.
 fn starts_with_lower(path: &[u8], prefix: &str) -> bool {
     path.get(..prefix.len()).is_some_and(|p| p.eq_ignore_ascii_case(prefix.as_bytes()))
@@ -486,7 +558,16 @@ fn ends_with_lower(path: &[u8], suffix: &str) -> bool {
 
 fn is_bot(req: &Request) -> bool {
     let path = req.path().as_bytes();
-    if BOT_PATHS.iter().any(|p| starts_with_lower(path, p)) || [".php", ".asp", ".aspx"].iter().any(|e| ends_with_lower(path, e)) {
+    let mut m = path.get(1).map_or(0, |&b| BOT_PATHS_BY_SECOND[b as usize]);
+    while m != 0 {
+        let p = BOT_PATHS[m.trailing_zeros() as usize];
+        m &= m - 1;
+        if starts_with_lower(path, p) {
+            return true;
+        }
+    }
+    // The extensions all end with a `p` or an `x`.
+    if matches!(path.last(), Some(b'p' | b'P' | b'x' | b'X')) && BOT_EXTENSIONS.iter().any(|e| ends_with_lower(path, e)) {
         return true;
     }
     BOTS.found_in(req.header("user-agent").unwrap_or("").as_bytes(), true)
@@ -497,6 +578,48 @@ fn is_bot(req: &Request) -> bool {
 const SHARDS: usize = 32;
 
 type Window = HashMap<(usize, String), (u32, Instant)>;
+
+/// A key of the windows read without making its `String`: a request from
+/// an address already counted allocates nothing. Hashed and compared like
+/// `(usize, String)` (SipHash stays: the addresses come from the clients).
+trait WindowKey {
+    fn parts(&self) -> (usize, &str);
+}
+
+impl WindowKey for (usize, String) {
+    fn parts(&self) -> (usize, &str) {
+        (self.0, &self.1)
+    }
+}
+
+impl WindowKey for (usize, &str) {
+    fn parts(&self) -> (usize, &str) {
+        (self.0, self.1)
+    }
+}
+
+impl<'a> std::borrow::Borrow<dyn WindowKey + 'a> for (usize, String) {
+    fn borrow(&self) -> &(dyn WindowKey + 'a) {
+        self
+    }
+}
+
+impl std::hash::Hash for dyn WindowKey + '_ {
+    /// What `(usize, String)` hashes: its two parts, one after the other.
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let (id, ip) = self.parts();
+        id.hash(state);
+        ip.hash(state);
+    }
+}
+
+impl PartialEq for dyn WindowKey + '_ {
+    fn eq(&self, other: &Self) -> bool {
+        self.parts() == other.parts()
+    }
+}
+
+impl Eq for dyn WindowKey + '_ {}
 
 fn windows() -> &'static [Mutex<Window>] {
     static W: OnceLock<Vec<Mutex<Window>>> = OnceLock::new();
@@ -520,13 +643,21 @@ fn limited(id: usize, per_minute: u32, ip: &str) -> Option<u64> {
     if map.len() > 100_000 {
         map.retain(|_, (_, start)| now.duration_since(*start) < Duration::from_secs(60));
     }
-    let entry = map.entry((id, ip.to_string())).or_insert((0, now));
-    if now.duration_since(entry.1) >= Duration::from_secs(60) {
-        *entry = (0, now);
-    }
-    entry.0 += 1;
-    if entry.0 > per_minute {
-        Some(60u64.saturating_sub(now.duration_since(entry.1).as_secs()).max(1))
+    let (count, start) = match map.get_mut(&(id, ip) as &dyn WindowKey) {
+        Some(entry) => {
+            if now.duration_since(entry.1) >= Duration::from_secs(60) {
+                *entry = (0, now);
+            }
+            entry.0 += 1;
+            *entry
+        }
+        None => {
+            map.insert((id, ip.to_string()), (1, now));
+            (1, now)
+        }
+    };
+    if count > per_minute {
+        Some(60u64.saturating_sub(now.duration_since(start).as_secs()).max(1))
     } else {
         None
     }
@@ -711,11 +842,107 @@ mod tests {
             Some("caf\u{e9} havij"),
             Some("fimap"),
         ];
+        // Paths made of the bytes of the prefixes and extensions, in both cases.
+        let alphabet = b"/.envgitsvnawsdstorewp-admlocnhuxr.phpPHPASPXaspx1HN";
+        let mut x: u64 = 88_172_645_463_325_252;
+        for _ in 0..50_000 {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            let mut y = x;
+            let p: String = (0..x % 14)
+                .map(|_| {
+                    y = y.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
+                    alphabet[(y >> 33) as usize % alphabet.len()] as char
+                })
+                .collect();
+            assert_eq!(is_bot(&request(&p, None)), bot_before(&p, ""), "{p}");
+        }
+        for p in BOT_PATHS {
+            assert!(is_bot(&request(p, None)) && is_bot(&request(&p.to_ascii_uppercase(), None)), "{p}");
+        }
         for p in paths {
             for ua in agents {
                 assert_eq!(is_bot(&request(p, ua)), bot_before(p, ua.unwrap_or("")), "{p} {ua:?}");
             }
         }
+    }
+
+    /// The windows as they were counted before they were read without a
+    /// `String`: the same answers, the same entries, the same hashes.
+    /// The search by the first two bytes finds what `contains` finds, in
+    /// texts full of the bytes of the patterns (cut, in capitals, at the ends).
+    #[test]
+    fn needles_find_what_contains_finds() {
+        let mut x: u64 = 0x9e37_79b9_7f4a_7c15;
+        let mut rnd = move || {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            x
+        };
+        let all: Vec<&str> = WAF_PATTERNS.iter().chain(BOT_AGENTS).copied().collect();
+        let mut alphabet: Vec<u8> = all.iter().flat_map(|p| p.bytes()).collect();
+        alphabet.extend(b"ABCDEFGHIJKLMNOPQRSTUVWXYZ \xc3\xa9\xff\x00");
+        alphabet.sort();
+        alphabet.dedup();
+        let mut found = 0;
+        for n in 0..100_000 {
+            let len = (rnd() % 24) as usize;
+            let mut t: Vec<u8> = (0..len).map(|_| alphabet[(rnd() % alphabet.len() as u64) as usize]).collect();
+            if n % 3 == 0 {
+                let mut p = all[(rnd() % all.len() as u64) as usize].as_bytes().to_vec();
+                if rnd() % 2 == 0 {
+                    p.make_ascii_uppercase();
+                }
+                if rnd() % 3 == 0 {
+                    p.pop();
+                }
+                let at = (rnd() % (t.len() as u64 + 1)) as usize;
+                t.splice(at..at, p);
+            }
+            let lower = t.to_ascii_lowercase();
+            for (needles, list) in [(&WAF, WAF_PATTERNS), (&BOTS, BOT_AGENTS)] {
+                let contains = |text: &[u8]| list.iter().any(|p| text.windows(p.len()).any(|w| w == p.as_bytes()));
+                assert_eq!(needles.found_in(&t, true), contains(&lower), "{t:?}");
+                assert_eq!(needles.found_in(&t, false), contains(&t), "{t:?}");
+                found += contains(&lower) as u32;
+            }
+        }
+        assert!(found > 25_000, "{found}");
+        assert!(!WAF.found_in(b"", true) && !WAF.found_in(b"", false));
+        assert!(WAF.found_in(b"\0", true) && WAF.found_in(b"a\0", false) && WAF.found_in(b"\0a", true));
+    }
+
+    #[test]
+    fn rate_limit_as_before() {
+        use std::hash::BuildHasher;
+        let keys = HashMap::<(usize, String), ()>::new();
+        for (id, ip) in [(0, ""), (1, "1.2.3.4"), (usize::MAX, "::1"), (7, "\u{e9}t\u{e9}"), (3, "a\u{ff}b")] {
+            let owned = (id, ip.to_string());
+            let view: &dyn WindowKey = &(id, ip);
+            assert_eq!(keys.hasher().hash_one(&owned), keys.hasher().hash_one(view));
+            assert!(std::borrow::Borrow::<dyn WindowKey>::borrow(&owned) == view);
+        }
+        let id = next_limiter();
+        let mut before: HashMap<(usize, String), (u32, Instant)> = HashMap::new();
+        let mut old = |ip: &str, per_minute: u32| {
+            let now = Instant::now();
+            let entry = before.entry((id, ip.to_string())).or_insert((0, now));
+            if now.duration_since(entry.1) >= Duration::from_secs(60) {
+                *entry = (0, now);
+            }
+            entry.0 += 1;
+            (entry.0 > per_minute).then_some(entry.0)
+        };
+        for i in 0..50 {
+            for ip in ["10.0.0.1", "10.0.0.2", "::1", ""] {
+                let per_minute = if ip == "::1" { 20 } else { 5 };
+                assert_eq!(limited(id, per_minute, ip).is_some(), old(ip, per_minute).is_some(), "{i} {ip}");
+            }
+        }
+        let shard_total: usize = windows().iter().map(|w| w.lock().unwrap().keys().filter(|k| k.0 == id).count()).sum();
+        assert_eq!(shard_total, 4);
     }
 
     #[test]

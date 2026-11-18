@@ -185,16 +185,44 @@ pub fn write_json(v: &Value, out: &mut String) {
     }
 }
 
+const LO: u64 = 0x0101_0101_0101_0101;
+const HI: u64 = 0x8080_8080_8080_8080;
+
+/// The high bit of each byte of `x` that is zero, and maybe of the bytes
+/// above it: not zero exactly when one byte of `x` is zero.
+#[inline]
+fn zero_bytes(x: u64) -> u64 {
+    x.wrapping_sub(LO) & !x & HI
+}
+
+/// Whether one of the 8 bytes of `w` is below 0x20, a `"` or a `\` (the
+/// classic test for a byte below a value, exact for "one of them" like
+/// `zero_bytes`).
+#[inline]
+fn word_needs_escape(w: u64) -> bool {
+    let below = w.wrapping_sub(LO * 0x20) & !w & HI;
+    (below | zero_bytes(w ^ (LO * b'"' as u64)) | zero_bytes(w ^ (LO * b'\\' as u64))) != 0
+}
+
 fn write_str(s: &str, out: &mut String) {
     out.push('"');
-    // Most texts have nothing to escape: written in one go.
-    if !s.bytes().any(|b| b < 0x20 || b == b'"' || b == b'\\') {
+    let bytes = s.as_bytes();
+    // Most texts have nothing to escape: looked at 8 bytes at a time, then
+    // written in one go.
+    let mut clean = 0;
+    while let Some(chunk) = bytes.get(clean..clean + 8) {
+        if word_needs_escape(u64::from_le_bytes(chunk.try_into().unwrap_or_default())) {
+            break;
+        }
+        clean += 8;
+    }
+    if !bytes[clean..].iter().any(|&b| b < 0x20 || b == b'"' || b == b'\\') {
         out.push_str(s);
         out.push('"');
         return;
     }
     let mut start = 0;
-    for (i, b) in s.bytes().enumerate() {
+    for (i, &b) in bytes.iter().enumerate().skip(clean) {
         let esc = match b {
             b'"' => "\\\"",
             b'\\' => "\\\\",
@@ -326,6 +354,43 @@ fn shape(keys: Vec<Rc<str>>) -> Rc<rythme::value::Shape> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The texts written as `serde_json` writes them, escapes included, at
+    /// every place in the words of 8 bytes.
+    #[test]
+    fn texts_as_serde_writes_them() {
+        let specials = [
+            "\"", "\\", "\n", "\r", "\t", "\u{0}", "\u{1f}", "\u{7f}", " ", "!", "#", "[", "]", "é", "€", "😀", "a", "\u{a2}", "\u{dc}",
+            "\u{9c}",
+        ];
+        let mut texts = vec![String::new()];
+        for len in 0..20 {
+            for (k, sp) in specials.iter().enumerate() {
+                for at in 0..=len {
+                    let mut t: String = (0..len).map(|i| (b'a' + ((i + k) % 26) as u8) as char).collect();
+                    t.insert_str(at, sp);
+                    texts.push(t);
+                }
+            }
+        }
+        for t in texts {
+            let mut out = String::new();
+            write_str(&t, &mut out);
+            assert_eq!(out, serde_json::to_string(&t).unwrap(), "{t:?}");
+        }
+        for w in [
+            0u64,
+            u64::MAX,
+            0x2020_2020_2020_2020,
+            0x1f20_2020_2020_2020,
+            0x2121_2121_2121_2122,
+            0x5d5d_5c5d_5d5d_5d5d,
+            0x8080_8080_8080_80a2,
+        ] {
+            let bytes = w.to_le_bytes();
+            assert_eq!(word_needs_escape(w), bytes.iter().any(|&b| b < 0x20 || b == b'"' || b == b'\\'), "{w:x}");
+        }
+    }
 
     #[test]
     fn round_trip() {

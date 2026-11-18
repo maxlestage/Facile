@@ -372,8 +372,25 @@ fn value_of_cell(it: &Interp, c: &Cell, kind: Option<Kind>) -> Value {
 
 /// A row as a record: `{id: 1, titre: "Lait", fait: false, ...}`.
 pub fn row_value(it: &Interp, m: &Model, row: &[Cell]) -> Value {
-    let vals = row.iter().zip(m.column_names()).map(|(c, col)| value_of_cell(it, c, m.kind_of(col)));
-    Value::Record(Rc::new(util::shaped(shape_of(m), vals)))
+    RowReader::new(m).value(it, row)
+}
+
+/// What turns the rows of a model into records, found once for all the
+/// rows of a query: the shape of the records and the kind of each column.
+struct RowReader {
+    shape: Rc<Shape>,
+    kinds: Vec<Option<Kind>>,
+}
+
+impl RowReader {
+    fn new(m: &Model) -> RowReader {
+        RowReader { shape: shape_of(m), kinds: m.column_names().map(|c| m.kind_of(c)).collect() }
+    }
+
+    fn value(&self, it: &Interp, row: &[Cell]) -> Value {
+        let vals = row.iter().zip(&self.kinds).map(|(c, kind)| value_of_cell(it, c, *kind));
+        Value::Record(Rc::new(util::shaped(self.shape.clone(), vals)))
+    }
 }
 
 /// The rows of a query, with their relations when it includes some.
@@ -382,7 +399,8 @@ pub fn rows(it: &mut Interp, qv: &Value, span: Span) -> Fallible<Vec<Value>> {
     let m = model_of(qv).map_err(|e| error("db", e, span))?;
     let q = Query::from_value(qv, &m).map_err(|e| error("db", e, span))?;
     let rows = super::select(&m, &q).map_err(|e| error("db", e, span))?;
-    let mut values: Vec<Value> = rows.iter().map(|r| row_value(it, &m, r)).collect();
+    let reader = RowReader::new(&m);
+    let mut values: Vec<Value> = rows.iter().map(|r| reader.value(it, r)).collect();
     for rel in &q.includes {
         values = attach(it, &m, rel, values, span)?;
     }
@@ -441,10 +459,11 @@ fn attach(it: &mut Interp, m: &Model, rel: &str, values: Vec<Value>, span: Span)
             ..Query::default()
         };
         let found = super::select(&other, &q).map_err(|e| error("include", e, span))?;
+        let reader = RowReader::new(&other);
         let by_id: HashMap<i64, Value> = found
             .iter()
             .filter_map(|r| match r.first() {
-                Some(Cell::Int(id)) => Some((*id, row_value(it, &other, r))),
+                Some(Cell::Int(id)) => Some((*id, reader.value(it, r))),
                 _ => None,
             })
             .collect();
@@ -480,9 +499,10 @@ fn attach(it: &mut Interp, m: &Model, rel: &str, values: Vec<Value>, span: Span)
         let found = super::select(&other, &q).map_err(|e| error("include", e, span))?;
         let fk = other.columns().iter().position(|c| *c == h.foreign).unwrap_or(0);
         let mut groups: HashMap<i64, Vec<Value>> = HashMap::new();
+        let reader = RowReader::new(&other);
         for r in &found {
             if let Some(Cell::Int(p)) = r.get(fk) {
-                groups.entry(*p).or_default().push(row_value(it, &other, r));
+                groups.entry(*p).or_default().push(reader.value(it, r));
             }
         }
         return Ok(values
