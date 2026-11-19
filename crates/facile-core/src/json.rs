@@ -121,19 +121,13 @@ pub fn escaped(s: &str) -> String {
 
 /// A value written as JSON text.
 pub fn write_json(v: &Value, out: &mut String) {
-    use std::fmt::Write;
     match v {
         Value::Unit => out.push_str("null"),
         Value::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
         // The same digits as `{n}`, without the machinery of `fmt`.
         Value::Int(n) => out.push_str(itoa::Buffer::new().format(*n)),
         Value::Big(n) => write_str(&n.to_string(), out),
-        Value::Float(f) if f.is_finite() => {
-            let _ = write!(out, "{f}");
-            if f.fract() == 0.0 && f.abs() < 1e16 {
-                out.push_str(".0");
-            }
-        }
+        Value::Float(f) if f.is_finite() => write_float(*f, out),
         Value::Float(_) => out.push_str("null"),
         Value::Text(s) => write_str(s, out),
         Value::Symbol(s) => write_str(&s.name(), out),
@@ -182,6 +176,35 @@ pub fn write_json(v: &Value, out: &mut String) {
             out.push_str(&serde_json::to_string(&j).unwrap_or_else(|_| "null".into()));
         }
         Value::Func(_) | Value::Builtin(_) | Value::Ctor(_) => out.push_str("null"),
+    }
+}
+
+/// A finite float as `{f}` writes it, with `.0` after a whole number below 1e16.
+///
+/// `zmij` finds the same shortest digits as `fmt` about three times faster,
+/// and writes them the same way between 1e-5 and 1e16 (`.0` included). The
+/// two differ only on a tie (the exact value halfway between two shortest
+/// texts: `fmt` rounds it up, `zmij` to even), and a tie needs at least 16
+/// significant digits: with 15 or fewer, the text of `zmij` is kept, the
+/// others go through `fmt` as before.
+fn write_float(f: f64, out: &mut String) {
+    if (1e-5..1e16).contains(&f.abs()) {
+        let mut buf = zmij::Buffer::new();
+        let text = buf.format_finite(f);
+        let b = text.as_bytes();
+        // Significant digits, counted from the first one that is not a zero
+        // (trailing zeros counted too: at worst, a few more go through `fmt`).
+        let lead = b.iter().take_while(|&&c| c == b'-' || c == b'0' || c == b'.').count();
+        let digits = b.len() - lead - b[lead..].contains(&b'.') as usize;
+        if digits <= 15 {
+            out.push_str(text);
+            return;
+        }
+    }
+    use std::fmt::Write;
+    let _ = write!(out, "{f}");
+    if f.fract() == 0.0 && f.abs() < 1e16 {
+        out.push_str(".0");
     }
 }
 
@@ -389,6 +412,50 @@ mod tests {
         ] {
             let bytes = w.to_le_bytes();
             assert_eq!(word_needs_escape(w), bytes.iter().any(|&b| b < 0x20 || b == b'"' || b == b'\\'), "{w:x}");
+        }
+    }
+
+    #[test]
+    fn floats_as_fmt_writes_them() {
+        let old = |f: f64| {
+            let mut s = format!("{f}");
+            if f.fract() == 0.0 && f.abs() < 1e16 {
+                s.push_str(".0");
+            }
+            s
+        };
+        let mut values =
+            vec![0.0, -0.0, 1e-5, 1e16, 1e15, 9999999999999998.0, 0.1, 0.3, 0.1 + 0.2, 1.0 / 3.0, 5e-324, f64::MAX, f64::MIN_POSITIVE];
+        for e in -30..=30 {
+            values.push(10f64.powi(e));
+        }
+        // Halves, quarters, ... of large numbers: the ties where `fmt` and `zmij` differ.
+        for i in 0..20_000u64 {
+            let k = i.wrapping_mul(0x9E37_79B9_7F4A_7C15) >> 11;
+            for j in [0, 1, 2, 3, 6, 10, 20, 30, 40, 50, 60] {
+                values.push(k as f64 / (1u64 << j) as f64);
+            }
+            values.push(i as f64 * 1.5);
+            values.push(i as f64 / 100.0);
+            values.push(i as f64 / 7.0);
+        }
+        let mut x: u64 = 0x2545_F491_4F6C_DD1D;
+        for _ in 0..200_000 {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            let exp = 1023 - 20 + (x >> 52) % 80;
+            values.push(f64::from_bits((x & ((1 << 52) - 1)) | (exp << 52) | (x & (1 << 63))));
+        }
+        let mut out = String::new();
+        for v in values {
+            for f in [v, -v, f64::from_bits(v.to_bits() + 1), f64::from_bits(v.to_bits().saturating_sub(1))] {
+                if f.is_finite() {
+                    out.clear();
+                    write_float(f, &mut out);
+                    assert_eq!(out, old(f), "{f:e}");
+                }
+            }
         }
     }
 

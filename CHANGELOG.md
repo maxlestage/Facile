@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.1.4 — unreleased
+
+Faster, with the same responses byte for byte (the pages of the site, the
+example and its REST API on memory, SQLite and PostgreSQL, a model with
+floats on the three databases, and the benchmark compared with 0.1.3; only
+the seconds of `Retry-After` follow the clock). Times measured inside the
+process, medians of 9 interleaved runs:
+
+- **JSON**: floats are written with `zmij` (already used by `serde_json`)
+  instead of `fmt`, about three times faster (75 → 22 ns a float). Both find
+  the same shortest digits and write them the same way between 1e-5 and
+  1e16; they differ only on a tie, which needs at least 16 significant
+  digits: those texts, and the numbers outside that range, still go through
+  `fmt`. A test compares the two on nearly two million floats, ties included.
+- **`memory://`**: a row keeps its cells in the order of the table's columns
+  instead of a map by name: each read finds them by position, without
+  hashing the names, and sorting by `id` no longer looks the rows up.
+- Together: 30 rows with a float each as JSON 15.6 → 13.7 µs (−12 %), the
+  first 5 of them 4.8 → 4.3 µs (−10 %), the same 30 through `resource`
+  14.8 → 12.9 µs (−13 %), one of them 2463 → 2330 ns (−5 %); the example's
+  REST API 2397 → 2293 ns (−4 %), filtered and sorted 4707 → 4473 ns (−5 %),
+  its JSON read from the database 4040 → 3851 ns (−5 %); the benchmark's
+  `POST /echo` 1233 → 1172 ns (−5 %).
+
 ## 0.1.3 — unreleased
 
 Faster, with the same responses byte for byte (the pages of the site, the

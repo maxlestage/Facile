@@ -12,3 +12,4 @@ serde_json.workspace = true
 serde = "1"
 rustc-hash = "2"
 itoa = "1"
+zmij = "1"

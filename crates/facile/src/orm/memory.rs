@@ -7,16 +7,54 @@ use super::model::Model;
 use super::query::{keeps, order_cells, Query};
 use super::{Cell, Row};
 
-/// A row: its cells by column. The names are those of the model's columns,
-/// never the client's: hashed with `FxHash` (each row read looks each of its
-/// columns up).
-type Cells = rustc_hash::FxHashMap<String, Cell>;
-
+/// A table: its rows by id, each with its cells in the order of `columns`
+/// (a row's cell is found at a position, without hashing the column's name;
+/// a row made before a column was added is shorter: that cell is null).
 #[derive(Clone, Default)]
 pub struct Table {
     columns: Vec<String>,
     next_id: i64,
-    rows: BTreeMap<i64, Cells>,
+    rows: BTreeMap<i64, Vec<Cell>>,
+}
+
+/// Where a column of a model is in the rows of its table.
+#[derive(Clone, Copy)]
+enum Slot {
+    /// `id`, the key of the row.
+    Id,
+    At(usize),
+    /// A column the table has never had: null.
+    Missing,
+}
+
+impl Table {
+    fn slot(&self, column: &str) -> Slot {
+        if column == "id" {
+            return Slot::Id;
+        }
+        self.columns.iter().position(|c| c == column).map_or(Slot::Missing, Slot::At)
+    }
+
+    /// The position of a column, added to the table when it has none of that name.
+    fn position_or_add(&mut self, column: &str) -> usize {
+        match self.columns.iter().position(|c| c == column) {
+            Some(i) => i,
+            None => {
+                self.columns.push(column.to_string());
+                self.columns.len() - 1
+            }
+        }
+    }
+}
+
+/// The cell of a row at a slot.
+#[inline]
+fn cell(id: i64, r: &[Cell], slot: Slot) -> Cell {
+    match slot {
+        Slot::Id => Cell::Int(id),
+        Slot::At(i) => r.get(i).cloned().unwrap_or(Cell::Null),
+        Slot::Missing => Cell::Null,
+    }
 }
 
 pub type Snapshot = HashMap<String, Table>;
@@ -43,8 +81,13 @@ fn missing(m: &Model) -> String {
     )
 }
 
-fn row_of(m: &Model, id: i64, r: &Cells) -> Row {
-    m.column_names().map(|c| if c == "id" { Cell::Int(id) } else { r.get(c).cloned().unwrap_or(Cell::Null) }).collect()
+/// The slots of the columns of a model, in its order.
+fn slots(t: &Table, m: &Model) -> Vec<Slot> {
+    m.column_names().map(|c| t.slot(c)).collect()
+}
+
+fn row_of(slots: &[Slot], id: i64, r: &[Cell]) -> Row {
+    slots.iter().map(|s| cell(id, r, *s)).collect()
 }
 
 /// The ids of the rows of the query, in its order, after its offset and limit.
@@ -53,16 +96,21 @@ fn matching(t: &Table, q: &Query) -> Vec<i64> {
         .rows
         .iter()
         .filter(|(id, r)| {
-            let get = |c: &str| if c == "id" { Cell::Int(**id) } else { r.get(c).cloned().unwrap_or(Cell::Null) };
+            let get = |c: &str| cell(**id, r, t.slot(c));
             keeps(q, &get)
         })
         .map(|(id, _)| *id)
         .collect();
     if !q.order.is_empty() {
-        let get = |id: i64, c: &str| if c == "id" { Cell::Int(id) } else { t.rows[&id].get(c).cloned().unwrap_or(Cell::Null) };
+        let order: Vec<(Slot, bool)> = q.order.iter().map(|(c, desc)| (t.slot(c), *desc)).collect();
+        // The row is only looked up for a column other than `id`.
+        let get = |id: i64, s: Slot| match s {
+            Slot::Id => Cell::Int(id),
+            _ => cell(id, &t.rows[&id], s),
+        };
         ids.sort_by(|a, b| {
-            for (c, desc) in &q.order {
-                let o = order_cells(&get(*a, c), &get(*b, c));
+            for (s, desc) in &order {
+                let o = order_cells(&get(*a, *s), &get(*b, *s));
                 let o = if *desc { o.reverse() } else { o };
                 if o != std::cmp::Ordering::Equal {
                     return o;
@@ -79,7 +127,8 @@ fn matching(t: &Table, q: &Query) -> Vec<i64> {
 pub fn select(m: &Model, q: &Query) -> Result<Vec<Row>, String> {
     let s = store();
     let t = s.get(&m.table).ok_or_else(|| missing(m))?;
-    Ok(matching(t, q).into_iter().map(|id| row_of(m, id, &t.rows[&id])).collect())
+    let slots = slots(t, m);
+    Ok(matching(t, q).into_iter().map(|id| row_of(&slots, id, &t.rows[&id])).collect())
 }
 
 pub fn aggregate(m: &Model, q: &Query, func: &str, column: &str) -> Result<Cell, String> {
@@ -89,11 +138,8 @@ pub fn aggregate(m: &Model, q: &Query, func: &str, column: &str) -> Result<Cell,
     if func == "count" {
         return Ok(Cell::Int(ids.len() as i64));
     }
-    let vals: Vec<Cell> = ids
-        .iter()
-        .map(|id| if column == "id" { Cell::Int(*id) } else { t.rows[id].get(column).cloned().unwrap_or(Cell::Null) })
-        .filter(|c| !matches!(c, Cell::Null))
-        .collect();
+    let slot = t.slot(column);
+    let vals: Vec<Cell> = ids.iter().map(|id| cell(*id, &t.rows[id], slot)).filter(|c| !matches!(c, Cell::Null)).collect();
     if vals.is_empty() {
         return Ok(Cell::Null);
     }
@@ -118,8 +164,12 @@ pub fn insert(m: &Model, cols: &[String], cells: Vec<Cell>) -> Result<Row, Strin
     let t = s.get_mut(&m.table).ok_or_else(|| missing(m))?;
     let id = t.next_id;
     t.next_id += 1;
-    let r: Cells = cols.iter().cloned().zip(cells).collect();
-    let row = row_of(m, id, &r);
+    let at: Vec<usize> = cols.iter().map(|c| t.position_or_add(c)).collect();
+    let mut r = vec![Cell::Null; t.columns.len()];
+    for (i, v) in at.into_iter().zip(cells) {
+        r[i] = v;
+    }
+    let row = row_of(&slots(t, m), id, &r);
     t.rows.insert(id, r);
     Ok(row)
 }
@@ -128,10 +178,15 @@ pub fn update(m: &Model, q: &Query, cols: &[String], cells: Vec<Cell>) -> Result
     let mut s = store();
     let t = s.get_mut(&m.table).ok_or_else(|| missing(m))?;
     let ids = matching(t, q);
+    let at: Vec<usize> = cols.iter().map(|c| t.position_or_add(c)).collect();
+    let width = t.columns.len();
     for id in &ids {
         if let Some(r) = t.rows.get_mut(id) {
-            for (c, v) in cols.iter().zip(cells.iter()) {
-                r.insert(c.clone(), v.clone());
+            if r.len() < width {
+                r.resize(width, Cell::Null);
+            }
+            for (i, v) in at.iter().zip(cells.iter()) {
+                r[*i] = v.clone();
             }
         }
     }
@@ -154,4 +209,60 @@ pub fn snapshot() -> Snapshot {
 
 pub fn restore(s: Snapshot) {
     *store() = s;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::model::{Field, Kind};
+    use super::super::query::{Cond, Filter, Op};
+    use super::*;
+
+    fn model(fields: &[(&str, Kind)]) -> Model {
+        let field = |(name, kind): &(&str, Kind)| Field {
+            name: name.to_string(),
+            kind: *kind,
+            required: false,
+            unique: false,
+            index: false,
+            default: None,
+            min: None,
+            max: None,
+            email: false,
+            one_of: Vec::new(),
+            refers: None,
+        };
+        Model { table: "zz_memory_columns".into(), fields: fields.iter().map(field).collect(), has_many: Vec::new(), timestamps: false }
+    }
+
+    #[test]
+    fn rows_made_before_a_column_was_added() {
+        let v1 = model(&[("a", Kind::Int)]);
+        create(&v1);
+        assert_eq!(insert(&v1, &["a".into()], vec![Cell::Int(1)]).unwrap(), vec![Cell::Int(1), Cell::Int(1)]);
+        let v2 = model(&[("a", Kind::Int), ("b", Kind::Text)]);
+        create(&v2);
+        let all = Query::default();
+        assert_eq!(select(&v2, &all).unwrap(), vec![vec![Cell::Int(1), Cell::Int(1), Cell::Null]]);
+        // Columns given in another order, one of them twice: the last one counts.
+        let cols: Vec<String> = ["b", "a", "b"].map(String::from).into();
+        let row = insert(&v2, &cols, vec![Cell::Text("y".into()), Cell::Int(2), Cell::Text("z".into())]).unwrap();
+        assert_eq!(row, vec![Cell::Int(2), Cell::Int(2), Cell::Text("z".into())]);
+        // A column the table does not have yet, and a row widened by an update.
+        let one = Query {
+            filters: vec![Filter::One(Cond { column: "a".into(), op: Op::Eq, value: Cell::Int(1), values: Vec::new() })],
+            ..Query::default()
+        };
+        assert_eq!(update(&v2, &one, &["b".into(), "c".into()], vec![Cell::Text("x".into()), Cell::Int(9)]).unwrap(), 1);
+        let v3 = model(&[("c", Kind::Int), ("b", Kind::Text)]);
+        let by_b = Query { order: vec![("b".into(), true)], ..Query::default() };
+        assert_eq!(
+            select(&v3, &by_b).unwrap(),
+            vec![vec![Cell::Int(2), Cell::Null, Cell::Text("z".into())], vec![Cell::Int(1), Cell::Int(9), Cell::Text("x".into())]]
+        );
+        assert_eq!(aggregate(&v3, &all, "sum", "c").unwrap(), Cell::Int(9));
+        assert_eq!(aggregate(&v3, &all, "max", "id").unwrap(), Cell::Int(2));
+        assert_eq!(aggregate(&v3, &all, "max", "nothing").unwrap(), Cell::Null);
+        assert_eq!(delete(&v3, &one).unwrap(), 1);
+        assert_eq!(select(&v1, &all).unwrap(), vec![vec![Cell::Int(2), Cell::Int(2)]]);
+    }
 }
