@@ -10,7 +10,7 @@
 | `facile reference` | toutes les fonctions que Facile ajoute à Rythme, en Markdown |
 | `facile version` | les versions de Facile et de Rythme |
 
-`APP` est un dossier qui contient `app.ry`, ou un fichier `.ry` ; par défaut, le dossier actuel. Les chemins écrits dans l'application (`read_file`, `sqlite://app.db`, `assets`) partent de son dossier.
+`APP` est un dossier qui contient `app.ry`, ou un fichier `.ry` ; par défaut, le dossier actuel. Les chemins écrits dans l'application (`read`, `write`, `read_file`, `sqlite://app.db`, `assets`) partent de son dossier ; une adresse web donnée à `read` reste une adresse web.
 
 Options : `--port N`, `--workers N`, `--lang fr|en|es|de|pt|zh` (la langue des messages ; `settings(app, {lang: "fr"})` la fixe pour l'application).
 

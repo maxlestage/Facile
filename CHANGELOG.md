@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+In step with Rythme, which takes the simplicity of REBOL (`read` for a file
+or a web address, `write`, and REBOL's names: `probe`, `ask`, `exists?`...):
+
+- `read` is watched like `read_file`: a response that reads a file or a web
+  address is never kept by the cache of pure responses, and a relative path
+  starts from the application's folder, while a web address
+  (`read("https://...")`) is left as it is. The REBOL names of the watched
+  functions (`write`, `exists?`, `info?`, `delete`, `make_dir`, `probe`,
+  `ask`, `wait`) are wrapped with them, like their Ruby names.
+- The site reads its pages with `read`, and the documentation (CLI,
+  requests, views; English and French) shows it.
+- Facile depends on the Rythme of the branch that brings these names
+  (`rebol`); it goes back to `master` once that branch is
+  merged.
+
 ## 0.1.4 — unreleased
 
 Faster, with the same responses byte for byte (the pages of the site, the

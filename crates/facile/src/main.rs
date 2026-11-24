@@ -101,7 +101,7 @@ fn entry(target: Option<&str>) -> Result<PathBuf, String> {
 
 fn set_global(file: &Path, production: bool) {
     let root = file.parent().map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from("."));
-    // Paths written in the application (`read_file("docs/a.md")`, `sqlite://app.db`)
+    // Paths written in the application (`read("docs/a.md")`, `sqlite://app.db`)
     // are read from its folder, wherever `facile` was started.
     let _ = std::env::set_current_dir(&root);
     runtime::set_global(Global { root, entry: file.to_path_buf(), production, lang: rythme::lang::code().to_string() });

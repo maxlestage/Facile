@@ -3,7 +3,8 @@
 //!
 //! The few functions of the language that read the world (the clock,
 //! random numbers, files, the environment, the network) are wrapped here: each one marks
-//! the response being computed as one that cannot be kept.
+//! the response being computed as one that cannot be kept. `read`, which
+//! reads a file or a web address as REBOL does, is one of them.
 
 use std::sync::OnceLock;
 
@@ -23,10 +24,11 @@ macro_rules! impure {
                 mark_impure();
                 let b = ORIGINAL.get_or_init(|| lookup($name).expect($name));
                 $(
-                    // A relative path is read from the application's folder.
+                    // A relative path is read from the application's folder;
+                    // a web address (`read("https://...")`) stays as it is.
                     let _ = $path;
                     if let Some(Value::Text(p)) = a.first() {
-                        if !std::path::Path::new(p.as_str()).is_absolute() {
+                        if !std::path::Path::new(p.as_str()).is_absolute() && !rythme::builtins::is_web_address(p) {
                             let mut args = a.to_vec();
                             args[0] = Value::text(&crate::runtime::resolve(p).to_string_lossy());
                             return (b.func)(it, &args, span);
@@ -43,7 +45,7 @@ macro_rules! impure {
 impure!(
     print_ => "print"; debug_ => "debug"; input_ => "input"; input_lines_ => "input_lines"; args_ => "args";
     options_ => "options"; env_ => "env"; time_ => "time"; random_ => "random"; random_seed_ => "random_seed";
-    shuffle_ => "shuffle"; read_file_ => "read_file", "path"; write_file_ => "write_file", "path";
+    shuffle_ => "shuffle"; read_file_ => "read_file", "path"; read_ => "read", "path"; write_file_ => "write_file", "path";
     append_file_ => "append_file", "path"; file_exists_ => "file_exists", "path"; file_info_ => "file_info", "path";
     list_folder_ => "list_folder", "path"; create_folder_ => "create_folder", "path"; delete_file_ => "delete_file", "path";
     now_ => "now"; today_ => "today"; sample_ => "sample"; uuid_ => "uuid";
@@ -76,7 +78,8 @@ fn wrapped() -> &'static [Builtin] {
     })
 }
 
-/// Puts the wrapped functions in place of the originals, under their Ruby names too.
+/// Puts the wrapped functions in place of the originals, under their Ruby and
+/// REBOL names too (`write` is `write_file`, `probe` is `debug`).
 pub fn install(it: &mut Interp) {
     for b in wrapped() {
         it.globals.insert(Sym::new(b.name), Value::Builtin(b));

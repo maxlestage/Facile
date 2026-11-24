@@ -45,11 +45,11 @@ fn home(req) = page({
 ## Markdown
 
 ```rythme
-guide = unwrap_or(read_file("docs/guide.md"), "")
+guide = unwrap_or(read("docs/guide.md"), "")
 
 fn guide_page(req) = page({title: "Guide"}, [markdown(guide)])
 ```
 
 `markdown(text)` renders headings (with anchors), emphasis, code (Rythme code is colored), links, images, lists, quotes and tables. HTML written in the text is shown as text. `toc(text)` gives the headings for a table of contents, `highlight(code)` colors Rythme code.
 
-> A file read at the top level of the application (`guide = read_file(...)`) is read **once**, at startup: the pages that show it stay pure and use the cache.
+> A file read at the top level of the application (`guide = read(...)`) is read **once**, at startup: the pages that show it stay pure and use the cache.

@@ -8,7 +8,7 @@ use client/compteur
 use client/essai
 
 ## The code shown in the window of the home page (read once, when the site starts).
-fn _fichier(chemin) = unwrap_or(read_file(chemin), "")
+fn _fichier(chemin) = unwrap_or(read(chemin), "")
 
 code_app = _fichier("exemples/app.ry")
 code_compteur = _fichier("exemples/compteur.ry")

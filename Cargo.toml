@@ -12,7 +12,8 @@ homepage = "https://github.com/maxlestage/Facile"
 authors = ["Maxime Nathan Lestage"]
 
 [workspace.dependencies]
-rythme = { git = "https://github.com/maxlestage/Rythme", branch = "master" }
+# The branch of Rythme that brings `read` and the REBOL names; back to "master" once it is merged.
+rythme = { git = "https://github.com/maxlestage/Rythme", branch = "rebol" }
 serde_json = { version = "1", features = ["preserve_order"] }
 
 [profile.release]

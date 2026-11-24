@@ -11,7 +11,7 @@ fn _simple(lang, chemin, titre, eyebrow, intro, contenu) = mise_en_page.document
   ]),
 ])
 
-fn _texte(chemin) = unwrap_or(read_file(chemin), "")
+fn _texte(chemin) = unwrap_or(read(chemin), "")
 
 benchmark_fr = _texte("docs/fr/performance.md")
 benchmark_en = _texte("docs/en/performance.md")

@@ -19,7 +19,7 @@ sujets = [
   ["reference", "Référence", "Reference"],
 ]
 
-fn _lire(lang, slug) = unwrap_or(read_file("docs/{lang}/{slug}.md"), "# {slug}\n\n(texte manquant)")
+fn _lire(lang, slug) = unwrap_or(read("docs/{lang}/{slug}.md"), "# {slug}\n\n(texte manquant)")
 
 ## Every text, by language and slug, read now: serving a page reads nothing more.
 textes_fr = dict(sujets.map { |[slug, _, _]| [slug, _lire("fr", slug)] })
