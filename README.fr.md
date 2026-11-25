@@ -71,7 +71,7 @@ cd mon-app && facile dev
 | `facile routes` | liste les routes |
 | `facile reference` | toutes les fonctions de Facile, en Markdown |
 
-La documentation complète est dans [`site/docs/fr`](site/docs/fr) (et sur le site, servi par Facile lui-même) : [démarrer](site/docs/fr/start.md), [routes](site/docs/fr/routes.md), [requêtes et réponses](site/docs/fr/requests.md), [middlewares](site/docs/fr/middlewares.md), [ORM](site/docs/fr/orm.md), [vues et SEO](site/docs/fr/views.md), [îlots WebAssembly](site/docs/fr/islands.md), [sécurité](site/docs/fr/security.md), [déploiement](site/docs/fr/deploy.md), [référence](site/docs/fr/reference.md).
+La documentation complète est dans [`site/docs/fr`](site/docs/fr) (et sur le site, servi par Facile lui-même, aussi exporté sur [GitHub Pages](https://maxlestage.github.io/Facile/)) : [démarrer](site/docs/fr/start.md), [routes](site/docs/fr/routes.md), [requêtes et réponses](site/docs/fr/requests.md), [middlewares](site/docs/fr/middlewares.md), [ORM](site/docs/fr/orm.md), [vues et SEO](site/docs/fr/views.md), [îlots WebAssembly](site/docs/fr/islands.md), [sécurité](site/docs/fr/security.md), [déploiement](site/docs/fr/deploy.md), [référence](site/docs/fr/reference.md).
 
 ## Performances
 

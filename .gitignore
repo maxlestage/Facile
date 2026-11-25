@@ -7,3 +7,4 @@
 /.cargo/config.toml
 node_modules/
 /bin
+/dist/
