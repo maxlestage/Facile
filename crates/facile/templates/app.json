@@ -1,0 +1,9 @@
+{
+  "name": "{{nom}}",
+  "description": "An application written in Rythme with Facile.",
+  "stack": "container",
+  "addons": ["heroku-postgresql:essential-0"],
+  "env": {
+    "FACILE_ENV": { "value": "production" }
+  }
+}

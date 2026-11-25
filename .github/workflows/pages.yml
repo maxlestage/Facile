@@ -1,0 +1,45 @@
+name: Website
+
+# Publishes the site of Facile (site/) on GitHub Pages, exported to static files
+# behind /Facile (scripts/export-pages.sh): every page, the assets and the islands,
+# which run in the browser. Needs, once, in Settings → Pages → Source: "GitHub
+# Actions".
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Static export
+        env:
+          BASE: /Facile
+          SITE_URL: https://maxlestage.github.io/Facile
+        run: scripts/export-pages.sh dist
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
