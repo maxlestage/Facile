@@ -179,6 +179,29 @@ app("Cache") |> on_get("/pure/:n", pure) |> on_get("/agent", lit_en_tete) |> on_
 }
 
 #[test]
+fn read_and_write_as_in_rebol_start_from_the_app_and_are_never_kept() {
+    // `read` and `write` (REBOL's words for `read_file` and `write_file`):
+    // a relative path starts from the application's folder, and a response
+    // that reads a file is computed again each time.
+    const APP: &str = r#"
+fn lire(req) = unwrap_or(read("note.txt"), "?")
+fn ecrire(req) = match write("note.txt", req.params.texte)
+  Ok(_) -> "écrit"
+  Err(e) -> problem(500, e)
+end
+fn sonde(req) = probe(req.params.n)
+app("REBOL") |> on_get("/lire", lire) |> on_post("/ecrire/:texte", ecrire) |> on_get("/sonde/:n", sonde)
+"#;
+    with_app("rebol", &[("app.ry", APP), ("note.txt", "un")], |rt| {
+        assert_eq!(get(rt, "/lire").body, "un");
+        assert_eq!(send(rt, "POST", "/ecrire/deux", &[], "").body, "écrit");
+        // The file changed: the first answer was not kept.
+        assert_eq!(get(rt, "/lire").body, "deux");
+        assert_eq!(get(rt, "/sonde/7").body, "7");
+    });
+}
+
+#[test]
 fn middlewares_in_rythme_and_in_rust() {
     const APP: &str = r#"
 fn journal(req, next)

@@ -11,18 +11,18 @@ Un composant est un fichier de `client/` qui se termine par `component = {name, 
 
 fn init(props) = {n: props.depart}
 
-fn update(etat, message) = match message
-  :plus -> {..etat, n: etat.n + 1}
-  :moins -> {..etat, n: etat.n - 1}
+fn update(etat message) = match message
+  :plus -> {..etat n: etat.n + 1}
+  :moins -> {..etat n: etat.n - 1}
 end
 
-fn view(etat) = div({class: "compteur"}, [
-  button({on_click: :moins}, ["−"]),
-  strong([etat.n]),
-  button({on_click: :plus}, ["+"]),
+fn view(etat) = div({class: "compteur"} [
+  button({on_click: :moins}, ["−"])
+  strong([etat.n])
+  button({on_click: :plus}, ["+"])
 ])
 
-component = {name: "compteur", init, update, view}
+component = {name: "compteur" init update view}
 ```
 
 C'est l'architecture d'Elm : un **état** (une valeur), des **messages**, `update` qui calcule le nouvel état, `view` qui le montre. Rien ne change en place.
@@ -32,9 +32,9 @@ C'est l'architecture d'Elm : un **état** (une valeur), des **messages**, `updat
 ```rythme
 use client/compteur
 
-fn accueil(req) = page({title: "Compteur"}, [
-  h1("Un compteur"),
-  island(compteur.component, {depart: 10}),
+fn accueil(req) = page({title: "Compteur"} [
+  h1("Un compteur")
+  island(compteur.component {depart: 10})
 ])
 ```
 
@@ -65,15 +65,15 @@ Après chaque message, Facile compare la nouvelle vue à l'ancienne et ne change
 ```rythme
 type Message = Chargees(resultat) | Ajouter | Ajoutee(resultat) | Tic
 
-fn init(props) = with_effects({taches: [], erreur: None}, [fetch_json("/api/taches", Chargees)])
+fn init(props) = with_effects({taches: [] erreur: None} [fetch_json("/api/taches" Chargees)])
 
-fn update(etat, message) = match message
-  Chargees(Ok(taches)) -> {..etat, taches: taches}
-  Chargees(Err(e)) -> {..etat, erreur: Some(e)}
-  Ajouter -> with_effects(etat, [send_json(:post, "/api/taches", {titre: "Nouvelle"}, Ajoutee)])
-  Ajoutee(Ok(t)) -> {..etat, taches: [t, ..etat.taches]}
-  Ajoutee(Err(e)) -> {..etat, erreur: Some(e)}
-  Tic -> with_effects(etat, [after(1000, Tic)])
+fn update(etat message) = match message
+  Chargees(Ok(taches)) -> {..etat taches: taches}
+  Chargees(Err(e)) -> {..etat erreur: Some(e)}
+  Ajouter -> with_effects(etat [send_json(:post "/api/taches" {titre: "Nouvelle"} Ajoutee)])
+  Ajoutee(Ok(t)) -> {..etat taches: [t, ..etat.taches]}
+  Ajoutee(Err(e)) -> {..etat erreur: Some(e)}
+  Tic -> with_effects(etat [after(1000 Tic)])
 end
 ```
 

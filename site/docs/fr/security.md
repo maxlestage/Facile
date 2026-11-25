@@ -30,14 +30,14 @@ La Content-Security-Policy par défaut n'autorise que les scripts du site et `wa
 
 ```rythme
 admin = app("Admin")
-  |> on_get("/", tableau)
-  |> middleware(mw.basic_auth("admin", unwrap_or(env("ADMIN_MDP"), "")))
+  |> on_get("/" tableau)
+  |> middleware(mw.basic_auth("admin" unwrap_or(env("ADMIN_MDP") "")))
 
 api = app("API")
-  |> resource("/commandes", commandes)
-  |> middleware(mw.bearer(unwrap_or(env("API_JETON"), "")))
+  |> resource("/commandes" commandes)
+  |> middleware(mw.bearer(unwrap_or(env("API_JETON") "")))
 
-app("Site") |> mount("/admin", admin) |> mount("/api", api)
+app("Site") |> mount("/admin" admin) |> mount("/api" api)
 ```
 
 Les secrets sont comparés en temps constant. Pour des sessions, un middleware Rythme lit un cookie et ajoute l'utilisateur à la requête (voir [Middlewares](/docs/middlewares)).

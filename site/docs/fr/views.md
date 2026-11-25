@@ -5,11 +5,11 @@ Une vue se construit avec des fonctions qui portent le nom des éléments HTML. 
 ## Les éléments
 
 ```rythme
-fn carte(produit) = article({class: "carte"}, [
-  img({src: produit.image, alt: produit.nom, loading: "lazy"}),
-  h2(produit.nom),
-  p({class: ["prix", if produit.promo then "promo" else ()]}, ["{produit.prix} €"]),
-  a({href: "/produits/{produit.id}"}, ["Voir"]),
+fn carte(produit) = article({class: "carte"} [
+  img({src: produit.image alt: produit.nom loading: "lazy"})
+  h2(produit.nom)
+  p({class: ["prix" if produit.promo then "promo" else ()]} ["{produit.prix} €"])
+  a({href: "/produits/{produit.id}"}, ["Voir"])
 ])
 ```
 
@@ -25,18 +25,18 @@ Une vue n'est qu'une valeur : une fonction peut en renvoyer, une liste peut en c
 
 ```rythme
 fn accueil(req) = page({
-  title: "Boutique — accueil",
-  description: "Des produits faits main.",
-  lang: "fr",
-  url: "https://boutique.fr/",
-  image: "https://boutique.fr/og.png",
-  css: ["/static/site.css"],
-  js: ["/static/site.js"],
-  json_ld: {"@context": "https://schema.org", "@type": "Store", name: "Boutique"},
-  alternates: {fr: "/", en: "/en/"},
-}, [
-  header([nav([a({href: "/"}, ["Accueil"])])]),
-  main([h1("Bienvenue")]),
+  title: "Boutique — accueil"
+  description: "Des produits faits main."
+  lang: "fr"
+  url: "https://boutique.fr/"
+  image: "https://boutique.fr/og.png"
+  css: ["/static/site.css"]
+  js: ["/static/site.js"]
+  json_ld: {"@context": "https://schema.org" "@type": "Store" name: "Boutique"}
+  alternates: {fr: "/" en: "/en/"}
+} [
+  header([nav([a({href: "/"}, ["Accueil"])])])
+  main([h1("Bienvenue")])
 ])
 ```
 
@@ -45,11 +45,11 @@ fn accueil(req) = page({
 ## Markdown
 
 ```rythme
-guide = unwrap_or(read_file("docs/guide.md"), "")
+guide = unwrap_or(read("docs/guide.md") "")
 
 fn page_guide(req) = page({title: "Guide"}, [markdown(guide)])
 ```
 
 `markdown(texte)` rend titres (avec ancres), emphase, code (le code Rythme est coloré), liens, images, listes, citations et tableaux. Le HTML écrit dans le texte est affiché comme du texte. `toc(texte)` donne la liste des titres pour une table des matières, `highlight(code)` colore du code Rythme.
 
-> Un fichier lu au premier niveau de l'application (`guide = read_file(...)`) est lu **une fois**, au démarrage : les pages qui l'affichent restent pures et profitent du cache.
+> Un fichier lu au premier niveau de l'application (`guide = read(...)`) est lu **une fois**, au démarrage : les pages qui l'affichent restent pures et profitent du cache.

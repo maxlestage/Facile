@@ -1,10 +1,10 @@
 ## Un middleware écrit en Rythme.
-fn chrono(req, next)
+fn chrono(req next)
   res = next(req)
-  with_header(res, "x-servi-par", "Facile")
+  with_header(res "x-servi-par" "Facile")
 end
 
-fn admin_seulement(req, next) = match req.cookie("role")
+fn admin_seulement(req next) = match req.cookie("role")
   Some("admin") -> next(req)
   _ -> redirect("/connexion")
 end
@@ -13,4 +13,4 @@ app("Boutique")
   |> middleware(mw.shield())
   |> middleware(mw.cors(["https://boutique.fr"]))
   |> middleware(chrono)
-  |> mount("/admin", admin |> middleware(admin_seulement))
+  |> mount("/admin" admin |> middleware(admin_seulement))

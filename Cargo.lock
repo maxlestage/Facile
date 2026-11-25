@@ -214,7 +214,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e35d6e78f4cebb90e51d543db8fe41528851d6deeef6ef21ebd4bfdc1e784776"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -869,7 +869,7 @@ dependencies = [
 [[package]]
 name = "rythme"
 version = "1.0.0"
-source = "git+https://github.com/maxlestage/Rythme?branch=master#cddd1f708f06f9d7308de60193cdc91cf0cd11eb"
+source = "git+https://github.com/maxlestage/Rythme?branch=master#a441031fcdeafd269a8d0dbe2bdb5b8bb05a9c57"
 dependencies = [
  "rustyline",
  "rythme-macros",
@@ -878,7 +878,7 @@ dependencies = [
 [[package]]
 name = "rythme-macros"
 version = "1.0.0"
-source = "git+https://github.com/maxlestage/Rythme?branch=master#cddd1f708f06f9d7308de60193cdc91cf0cd11eb"
+source = "git+https://github.com/maxlestage/Rythme?branch=master#a441031fcdeafd269a8d0dbe2bdb5b8bb05a9c57"
 
 [[package]]
 name = "scopeguard"

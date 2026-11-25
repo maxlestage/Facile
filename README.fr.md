@@ -15,20 +15,20 @@ Un serveur aussi rapide que Vitesse, des middlewares, un ORM qui parle à toutes
 ```rythme
 use client/compteur
 
-taches = model("taches", {
-  titre: field(:text, {required: true, max: 120}),
-  fait: field(:bool, {default: false}),
+taches = model("taches" {
+  titre: field(:text {required: true max: 120})
+  fait: field(:bool {default: false})
 })
 
-fn accueil(req) = page({title: "Mes tâches", lang: "fr"}, [
-  h1("Bonjour 👋"),
-  island(compteur.component, {depart: 0}),
+fn accueil(req) = page({title: "Mes tâches" lang: "fr"} [
+  h1("Bonjour 👋")
+  island(compteur.component {depart: 0})
 ])
 
 app("Tâches")
   |> models([taches])
-  |> resource("/api/taches", taches)     # GET, POST, PUT, PATCH, DELETE, validés
-  |> on_get("/", accueil)
+  |> resource("/api/taches" taches)     # GET, POST, PUT, PATCH, DELETE, validés
+  |> on_get("/" accueil)
   |> middleware(mw.shield())             # WAF, CSP, CSRF, limite de débit...
 ```
 

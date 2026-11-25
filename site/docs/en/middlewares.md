@@ -6,19 +6,19 @@ A middleware wraps the handlers: it sees the request before them and the respons
 
 ```rythme
 ## Adds a header to every response.
-fn signature(req, next)
+fn signature(req next)
   res = next(req)
-  with_header(res, "x-served-by", "Facile")
+  with_header(res "x-served-by" "Facile")
 end
 
 ## Turns away those who are not signed in.
-fn signed_in(req, next) = match req.cookie("session")
+fn signed_in(req next) = match req.cookie("session")
   Some(_) -> next(req)
   None -> redirect("/login")
 end
 
 ## Gives the handlers something more.
-fn user(req, next) = next({..req, user: read_session(req)})
+fn user(req next) = next({..req user: read_session(req)})
 
 app("Site")
   |> middleware(signature)

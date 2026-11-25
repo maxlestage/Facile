@@ -34,7 +34,7 @@ facile dev mon-app        # http://localhost:3000, rechargé à chaque modificat
 ```rythme
 fn bonjour(req) = "Bonjour, le web !"
 
-app("Bonjour") |> on_get("/", bonjour)
+app("Bonjour") |> on_get("/" bonjour)
 ```
 
 Un handler est une **fonction de la requête vers une réponse**. La dernière ligne du fichier est l'application à servir : `app("nom")` en crée une vide, et chaque fonction (`on_get`, `middleware`, `models`...) renvoie une nouvelle application. Les valeurs de Rythme ne changent jamais.
@@ -44,21 +44,21 @@ Un handler est une **fonction de la requête vers une réponse**. La dernière l
 ```rythme
 use client/compteur
 
-taches = model("taches", {
-  titre: field(:text, {required: true, max: 120}),
-  fait: field(:bool, {default: false}),
+taches = model("taches" {
+  titre: field(:text {required: true max: 120})
+  fait: field(:bool {default: false})
 })
 
-fn accueil(req) = page({title: "Mes tâches", lang: "fr"}, [
-  h1("Mes tâches"),
-  island(compteur.component, {depart: 3}),
+fn accueil(req) = page({title: "Mes tâches" lang: "fr"} [
+  h1("Mes tâches")
+  island(compteur.component {depart: 3})
 ])
 
 app("Tâches")
   |> models([taches])
-  |> resource("/api/taches", taches)
-  |> on_get("/", accueil)
-  |> assets("/static", "public")
+  |> resource("/api/taches" taches)
+  |> on_get("/" accueil)
+  |> assets("/static" "public")
   |> middleware(mw.shield())
 ```
 

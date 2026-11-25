@@ -10,7 +10,7 @@
 | `facile reference` | every function Facile adds to Rythme, as Markdown |
 | `facile version` | the versions of Facile and Rythme |
 
-`APP` is a folder holding `app.ry`, or a `.ry` file; by default, the current folder. Paths written in the application (`read_file`, `sqlite://app.db`, `assets`) start from its folder.
+`APP` is a folder holding `app.ry`, or a `.ry` file; by default, the current folder. Paths written in the application (`read`, `write`, `read_file`, `sqlite://app.db`, `assets`) start from its folder; a web address given to `read` stays a web address.
 
 Options: `--port N`, `--workers N`, `--lang fr|en|es|de|pt|zh` (the language of the messages; `settings(app, {lang: "en"})` sets it for the application).
 

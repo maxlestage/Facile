@@ -15,14 +15,14 @@ Et des fonctions pour lire le reste :
 
 ```rythme
 fn info(req) = {
-  agent: req.header("user-agent"),        # Some(texte) ou None
-  theme: req.cookie("theme"),             # Some(texte) ou None
-  ip: req.ip(),                           # la première de X-Forwarded-For derrière un proxy
+  agent: req.header("user-agent")        # Some(texte) ou None
+  theme: req.cookie("theme")             # Some(texte) ou None
+  ip: req.ip()                           # la première de X-Forwarded-For derrière un proxy
 }
 
 fn creer(req) = match req.json()          # Ok(valeur) ou Err(message)
-  Ok(donnees) -> json(donnees, 201)
-  Err(e) -> problem(400, e)
+  Ok(donnees) -> json(donnees 201)
+  Err(e) -> problem(400 e)
 end
 
 fn formulaire(req) = do
@@ -52,7 +52,7 @@ Les erreurs sont des valeurs : l'opérateur `?` de Rythme fait remonter un `Err`
 
 ```rythme
 fn terminer(req) = do
-  tache = db.update(taches, req.params.id, {fait: true})?   # Err(:not_found) devient 404
+  tache = db.update(taches req.params.id {fait: true})?   # Err(:not_found) devient 404
   json(tache)
 end
 ```
@@ -61,16 +61,16 @@ end
 
 ```rythme
 html("<p>Bonjour</p>")                       # du HTML, ou une vue
-json({ok: true}, 201)                        # du JSON, avec un statut
+json({ok: true} 201)                        # du JSON, avec un statut
 "Introuvable" |> status(404)                 # n'importe quelle réponse, autre statut
 redirect("/connexion")                       # 303 See Other (301, 302, 307, 308 possibles)
 send_file("rapports/mars.pdf")               # un fichier, avec son type
 no_content()                                 # 204
-problem(422, "le titre manque")              # {"error": "le titre manque"} et 422
+problem(422 "le titre manque")              # {"error": "le titre manque"} et 422
 
 json(produits)
-  |> with_header("cache-control", "public, max-age=60")
-  |> with_cookie("vu", "oui", {max_age: 86400, same_site: "lax"})
+  |> with_header("cache-control" "public, max-age=60")
+  |> with_cookie("vu" "oui" {max_age: 86400 same_site: "lax"})
 ```
 
 `with_cookie` pose `HttpOnly` et `SameSite=Lax` par défaut, et `Secure` en production. Un en-tête ne peut pas contenir de retour à la ligne : Facile le refuse.
@@ -79,7 +79,7 @@ json(produits)
 
 Rythme est **purement fonctionnel** : une fonction donne toujours le même résultat pour les mêmes arguments. Facile s'en sert : quand une réponse à un `GET` n'a lu que son chemin et sa requête — ni en-tête, ni cookie, ni base de données, ni horloge, ni fichier — elle est gardée et redonnée telle quelle aux requêtes suivantes, en quelques dizaines de nanosecondes.
 
-Rien à déclarer : Facile observe ce que le handler lit. Dès qu'il appelle `req.header`, `db.all`, `now()`, `random()`, `uuid()`, `read_file`, `http_get`..., sa réponse n'est pas gardée. Pour s'en passer complètement :
+Rien à déclarer : Facile observe ce que le handler lit. Dès qu'il appelle `req.header`, `db.all`, `now()`, `random()`, `uuid()`, `read` (un fichier ou une adresse web, comme en REBOL), `read_file`, `http_get`..., sa réponse n'est pas gardée. Pour s'en passer complètement :
 
 ```rythme
 app("Site") |> settings({cache: false})
@@ -93,8 +93,8 @@ Un handler qui a besoin de plusieurs choses lentes (services web, requêtes) peu
 async fn meteo(ville) = http_get("https://wttr.in/{ville}?format=3")
 
 fn accueil(req) = do
-  [paris, lyon] = await_all([meteo("Paris"), meteo("Lyon")])
-  {paris: paris, lyon: lyon}
+  [paris lyon] = await_all([meteo("Paris") meteo("Lyon")])
+  {paris: paris lyon: lyon}
 end
 ```
 

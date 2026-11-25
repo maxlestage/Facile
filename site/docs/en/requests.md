@@ -15,14 +15,14 @@ And functions to read the rest:
 
 ```rythme
 fn info(req) = {
-  agent: req.header("user-agent"),        # Some(text) or None
-  theme: req.cookie("theme"),             # Some(text) or None
-  ip: req.ip(),                           # the first of X-Forwarded-For behind a proxy
+  agent: req.header("user-agent")        # Some(text) or None
+  theme: req.cookie("theme")             # Some(text) or None
+  ip: req.ip()                           # the first of X-Forwarded-For behind a proxy
 }
 
 fn create(req) = match req.json()         # Ok(value) or Err(message)
-  Ok(data) -> json(data, 201)
-  Err(e) -> problem(400, e)
+  Ok(data) -> json(data 201)
+  Err(e) -> problem(400 e)
 end
 
 fn form_sent(req) = do
@@ -52,7 +52,7 @@ Errors are values: Rythme's `?` operator carries an `Err` up to the response.
 
 ```rythme
 fn finish(req) = do
-  task = db.update(tasks, req.params.id, {done: true})?   # Err(:not_found) becomes 404
+  task = db.update(tasks req.params.id {done: true})?   # Err(:not_found) becomes 404
   json(task)
 end
 ```
@@ -61,16 +61,16 @@ end
 
 ```rythme
 html("<p>Hello</p>")                         # HTML, or a view
-json({ok: true}, 201)                        # JSON, with a status
+json({ok: true} 201)                        # JSON, with a status
 "Not here" |> status(404)                    # any response, another status
 redirect("/login")                           # 303 See Other (301, 302, 307, 308 too)
 send_file("reports/march.pdf")               # a file, with its media type
 no_content()                                 # 204
-problem(422, "the title is missing")         # {"error": "the title is missing"} and 422
+problem(422 "the title is missing")         # {"error": "the title is missing"} and 422
 
 json(products)
-  |> with_header("cache-control", "public, max-age=60")
-  |> with_cookie("seen", "yes", {max_age: 86400, same_site: "lax"})
+  |> with_header("cache-control" "public, max-age=60")
+  |> with_cookie("seen" "yes" {max_age: 86400 same_site: "lax"})
 ```
 
 `with_cookie` sets `HttpOnly` and `SameSite=Lax` by default, and `Secure` in production. A header cannot hold a line break: Facile refuses it.
@@ -79,7 +79,7 @@ json(products)
 
 Rythme is **purely functional**: a function always gives the same result for the same arguments. Facile builds on it: when the response to a `GET` read nothing but its path and its query — no header, no cookie, no database, no clock, no file — it is kept and given again as it is to the next requests, in tens of nanoseconds.
 
-Nothing to declare: Facile watches what the handler reads. As soon as it calls `req.header`, `db.all`, `now()`, `random()`, `uuid()`, `read_file`, `http_get`..., its response is not kept. To do without it entirely:
+Nothing to declare: Facile watches what the handler reads. As soon as it calls `req.header`, `db.all`, `now()`, `random()`, `uuid()`, `read` (a file or a web address, as in REBOL), `read_file`, `http_get`..., its response is not kept. To do without it entirely:
 
 ```rythme
 app("Site") |> settings({cache: false})
@@ -93,8 +93,8 @@ A handler that needs several slow things (web services, queries) can start them 
 async fn weather(city) = http_get("https://wttr.in/{city}?format=3")
 
 fn home(req) = do
-  [paris, lyon] = await_all([weather("Paris"), weather("Lyon")])
-  {paris: paris, lyon: lyon}
+  [paris lyon] = await_all([weather("Paris") weather("Lyon")])
+  {paris: paris lyon: lyon}
 end
 ```
 

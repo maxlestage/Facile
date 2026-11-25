@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+In step with Rythme, which takes the simplicity of REBOL (`read` for a file
+or a web address, `write`, and REBOL's names: `probe`, `ask`, `exists?`...):
+
+- `read` is watched like `read_file`: a response that reads a file or a web
+  address is never kept by the cache of pure responses, and a relative path
+  starts from the application's folder, while a web address
+  (`read("https://...")`) is left as it is. The REBOL names of the watched
+  functions (`write`, `exists?`, `info?`, `delete`, `make_dir`, `probe`,
+  `ask`, `wait`) are wrapped with them, like their Ruby names.
+- The site reads its pages with `read`, and the documentation (CLI,
+  requests, views; English and French) shows it.
+- Without commas, as Rythme now writes it (`[1 2 3]`, `f(a b)`,
+  `{name: "Ada" age: 36}`): the site, the example, the benchmark, the
+  templates of `facile new`, the applications of the tests and every
+  sample of the documentation and of the READMEs are formatted by the new
+  `rythme fmt`; the browser side (`facile.wasm`) is built again with that
+  Rythme, and the islands run the same in Chromium.
+- Facile depends on the Rythme of `master` that brings them.
+
 ## 0.1.4 — unreleased
 
 Faster, with the same responses byte for byte (the pages of the site, the

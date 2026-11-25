@@ -6,19 +6,19 @@ Un middleware entoure les handlers : il voit la requête avant eux et la répons
 
 ```rythme
 ## Ajoute un en-tête à toutes les réponses.
-fn signature(req, next)
+fn signature(req next)
   res = next(req)
-  with_header(res, "x-servi-par", "Facile")
+  with_header(res "x-servi-par" "Facile")
 end
 
 ## Refuse ceux qui ne sont pas connectés.
-fn connecte(req, next) = match req.cookie("session")
+fn connecte(req next) = match req.cookie("session")
   Some(_) -> next(req)
   None -> redirect("/connexion")
 end
 
 ## Donne une information aux handlers.
-fn utilisateur(req, next) = next({..req, utilisateur: lire_session(req)})
+fn utilisateur(req next) = next({..req utilisateur: lire_session(req)})
 
 app("Site")
   |> middleware(signature)
