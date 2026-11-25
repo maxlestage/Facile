@@ -13,6 +13,12 @@ or a web address, `write`, and REBOL's names: `probe`, `ask`, `exists?`...):
   `ask`, `wait`) are wrapped with them, like their Ruby names.
 - The site reads its pages with `read`, and the documentation (CLI,
   requests, views; English and French) shows it.
+- Without commas, as Rythme now writes it (`[1 2 3]`, `f(a b)`,
+  `{name: "Ada" age: 36}`): the site, the example, the benchmark, the
+  templates of `facile new`, the applications of the tests and every
+  sample of the documentation and of the READMEs are formatted by the new
+  `rythme fmt`; the browser side (`facile.wasm`) is built again with that
+  Rythme, and the islands run the same in Chromium.
 - Facile depends on the Rythme of the branch that brings these names
   (`rebol`); it goes back to `master` once that branch is
   merged.

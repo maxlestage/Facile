@@ -15,20 +15,20 @@ A server as fast as Vitesse, middlewares, an ORM that talks to all your database
 ```rythme
 use client/compteur
 
-tasks = model("tasks", {
-  title: field(:text, {required: true, max: 120}),
-  done: field(:bool, {default: false}),
+tasks = model("tasks" {
+  title: field(:text {required: true max: 120})
+  done: field(:bool {default: false})
 })
 
-fn home(req) = page({title: "My tasks", lang: "en"}, [
-  h1("Hello 👋"),
-  island(compteur.component, {depart: 0}),
+fn home(req) = page({title: "My tasks" lang: "en"} [
+  h1("Hello 👋")
+  island(compteur.component {depart: 0})
 ])
 
 app("Tasks")
   |> models([tasks])
-  |> resource("/api/tasks", tasks)      # GET, POST, PUT, PATCH, DELETE, validated
-  |> on_get("/", home)
+  |> resource("/api/tasks" tasks)      # GET, POST, PUT, PATCH, DELETE, validated
+  |> on_get("/" home)
   |> middleware(mw.shield())            # WAF, CSP, CSRF, rate limit...
 ```
 

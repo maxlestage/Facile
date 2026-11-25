@@ -11,18 +11,18 @@ A component is a file of `client/` that ends with `component = {name, init, upda
 
 fn init(props) = {n: props.depart}
 
-fn update(state, message) = match message
-  :plus -> {..state, n: state.n + 1}
-  :minus -> {..state, n: state.n - 1}
+fn update(state message) = match message
+  :plus -> {..state n: state.n + 1}
+  :minus -> {..state n: state.n - 1}
 end
 
-fn view(state) = div({class: "counter"}, [
-  button({on_click: :minus}, ["−"]),
-  strong([state.n]),
-  button({on_click: :plus}, ["+"]),
+fn view(state) = div({class: "counter"} [
+  button({on_click: :minus}, ["−"])
+  strong([state.n])
+  button({on_click: :plus}, ["+"])
 ])
 
-component = {name: "compteur", init, update, view}
+component = {name: "compteur" init update view}
 ```
 
 This is the Elm architecture: a **state** (a value), **messages**, `update` that computes the new state, `view` that shows it. Nothing changes in place.
@@ -32,9 +32,9 @@ This is the Elm architecture: a **state** (a value), **messages**, `update` that
 ```rythme
 use client/compteur
 
-fn home(req) = page({title: "Counter"}, [
-  h1("A counter"),
-  island(compteur.component, {depart: 10}),
+fn home(req) = page({title: "Counter"} [
+  h1("A counter")
+  island(compteur.component {depart: 10})
 ])
 ```
 
@@ -65,15 +65,15 @@ After each message, Facile compares the new view with the old one and changes on
 ```rythme
 type Message = Loaded(result) | Add | Added(result) | Tick
 
-fn init(props) = with_effects({tasks: [], error: None}, [fetch_json("/api/tasks", Loaded)])
+fn init(props) = with_effects({tasks: [] error: None} [fetch_json("/api/tasks" Loaded)])
 
-fn update(state, message) = match message
-  Loaded(Ok(tasks)) -> {..state, tasks: tasks}
-  Loaded(Err(e)) -> {..state, error: Some(e)}
-  Add -> with_effects(state, [send_json(:post, "/api/tasks", {title: "New"}, Added)])
-  Added(Ok(t)) -> {..state, tasks: [t, ..state.tasks]}
-  Added(Err(e)) -> {..state, error: Some(e)}
-  Tick -> with_effects(state, [after(1000, Tick)])
+fn update(state message) = match message
+  Loaded(Ok(tasks)) -> {..state tasks: tasks}
+  Loaded(Err(e)) -> {..state error: Some(e)}
+  Add -> with_effects(state [send_json(:post "/api/tasks" {title: "New"} Added)])
+  Added(Ok(t)) -> {..state tasks: [t, ..state.tasks]}
+  Added(Err(e)) -> {..state error: Some(e)}
+  Tick -> with_effects(state [after(1000 Tick)])
 end
 ```
 

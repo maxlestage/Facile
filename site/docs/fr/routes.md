@@ -6,14 +6,14 @@ Une route associe une **méthode HTTP** et un **chemin** à un handler. Les rout
 
 ```rythme
 app("Boutique")
-  |> on_get("/", accueil)
-  |> on_get("/produits/:id", produit)
-  |> on_post("/panier", ajouter)
-  |> on_put("/panier/:id", remplacer)
-  |> on_patch("/panier/:id", modifier)
-  |> on_delete("/panier/:id", retirer)
-  |> route(:options, "/panier", options)
-  |> route(:any, "/sonde", sonde)
+  |> on_get("/" accueil)
+  |> on_get("/produits/:id" produit)
+  |> on_post("/panier" ajouter)
+  |> on_put("/panier/:id" remplacer)
+  |> on_patch("/panier/:id" modifier)
+  |> on_delete("/panier/:id" retirer)
+  |> route(:options "/panier" options)
+  |> route(:any "/sonde" sonde)
 ```
 
 `on_get(app, chemin, handler)` est `route(app, :get, chemin, handler)`. `:any` accepte toutes les méthodes. Une requête `HEAD` utilise la route `GET`, sans corps dans la réponse.
@@ -26,8 +26,8 @@ fn produit(req) = "Produit numéro {req.params.id}"
 fn fichier(req) = "Chemin demandé : {req.params.chemin}"
 
 app("Exemple")
-  |> on_get("/produits/:id", produit)
-  |> on_get("/fichiers/*chemin", fichier)
+  |> on_get("/produits/:id" produit)
+  |> on_get("/fichiers/*chemin" fichier)
 ```
 
 - `:nom` capture un segment ; sa valeur est un texte (`parse_int(req.params.id)` pour un nombre) ;
@@ -42,13 +42,13 @@ Une application peut en contenir une autre sous un préfixe, avec ses propres mi
 
 ```rythme
 admin = app("Admin")
-  |> on_get("/", tableau_de_bord)
-  |> on_get("/commandes", commandes)
-  |> middleware(mw.basic_auth("admin", unwrap_or(env("ADMIN_MDP"), "secret")))
+  |> on_get("/" tableau_de_bord)
+  |> on_get("/commandes" commandes)
+  |> middleware(mw.basic_auth("admin" unwrap_or(env("ADMIN_MDP") "secret")))
 
 app("Boutique")
-  |> on_get("/", accueil)
-  |> mount("/admin", admin)
+  |> on_get("/" accueil)
+  |> mount("/admin" admin)
 ```
 
 Les routes de `admin` deviennent `/admin` et `/admin/commandes`, et seuls elles passent par son authentification.
@@ -56,7 +56,7 @@ Les routes de `admin` deviennent `/admin` et `/admin/commandes`, et seuls elles 
 ## Fichiers statiques
 
 ```rythme
-app("Site") |> assets("/static", "public")
+app("Site") |> assets("/static" "public")
 ```
 
 `public/css/site.css` est servi à `/static/css/site.css`. En production, chaque fichier est lu une fois, compressé en gzip, avec un `ETag` (réponse `304` quand le navigateur l'a déjà) et `Cache-Control` ; un nom qui contient une empreinte (`app.4f3a9c1e.js`) est gardé un an. En développement, les fichiers sont relus à chaque requête.
@@ -64,9 +64,9 @@ app("Site") |> assets("/static", "public")
 ## Pages introuvables et erreurs
 
 ```rythme
-fn introuvable(req) = page({title: "Introuvable", status: 404}, [h1("Cette page n'existe pas")])
+fn introuvable(req) = page({title: "Introuvable" status: 404} [h1("Cette page n'existe pas")])
 
-fn en_cas_d_erreur(req, message) = page({title: "Oups", status: 500}, [h1("Une erreur est survenue")])
+fn en_cas_d_erreur(req message) = page({title: "Oups" status: 500} [h1("Une erreur est survenue")])
 
 app("Site")
   |> not_found(introuvable)

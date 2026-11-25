@@ -30,14 +30,14 @@ The default Content-Security-Policy only allows the site's own scripts and `wasm
 
 ```rythme
 admin = app("Admin")
-  |> on_get("/", dashboard)
-  |> middleware(mw.basic_auth("admin", unwrap_or(env("ADMIN_PASSWORD"), "")))
+  |> on_get("/" dashboard)
+  |> middleware(mw.basic_auth("admin" unwrap_or(env("ADMIN_PASSWORD") "")))
 
 api = app("API")
-  |> resource("/orders", orders)
-  |> middleware(mw.bearer(unwrap_or(env("API_TOKEN"), "")))
+  |> resource("/orders" orders)
+  |> middleware(mw.bearer(unwrap_or(env("API_TOKEN") "")))
 
-app("Site") |> mount("/admin", admin) |> mount("/api", api)
+app("Site") |> mount("/admin" admin) |> mount("/api" api)
 ```
 
 Secrets are compared in constant time. For sessions, a Rythme middleware reads a cookie and adds the user to the request (see [Middlewares](/en/docs/middlewares)).

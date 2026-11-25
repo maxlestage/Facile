@@ -34,7 +34,7 @@ facile dev my-app         # http://localhost:3000, reloaded at each change
 ```rythme
 fn hello(req) = "Hello, web!"
 
-app("Hello") |> on_get("/", hello)
+app("Hello") |> on_get("/" hello)
 ```
 
 A handler is a **function from the request to a response**. The last line of the file is the application to serve: `app("name")` makes an empty one, and every function (`on_get`, `middleware`, `models`...) returns a new application. Rythme values never change.
@@ -44,21 +44,21 @@ A handler is a **function from the request to a response**. The last line of the
 ```rythme
 use client/compteur
 
-tasks = model("tasks", {
-  title: field(:text, {required: true, max: 120}),
-  done: field(:bool, {default: false}),
+tasks = model("tasks" {
+  title: field(:text {required: true max: 120})
+  done: field(:bool {default: false})
 })
 
-fn home(req) = page({title: "My tasks", lang: "en"}, [
-  h1("My tasks"),
-  island(compteur.component, {depart: 3}),
+fn home(req) = page({title: "My tasks" lang: "en"} [
+  h1("My tasks")
+  island(compteur.component {depart: 3})
 ])
 
 app("Tasks")
   |> models([tasks])
-  |> resource("/api/tasks", tasks)
-  |> on_get("/", home)
-  |> assets("/static", "public")
+  |> resource("/api/tasks" tasks)
+  |> on_get("/" home)
+  |> assets("/static" "public")
   |> middleware(mw.shield())
 ```
 

@@ -6,14 +6,14 @@ A route ties an **HTTP method** and a **path** to a handler. Routes are added to
 
 ```rythme
 app("Shop")
-  |> on_get("/", home)
-  |> on_get("/products/:id", product)
-  |> on_post("/cart", add)
-  |> on_put("/cart/:id", replace)
-  |> on_patch("/cart/:id", change)
-  |> on_delete("/cart/:id", remove)
-  |> route(:options, "/cart", options)
-  |> route(:any, "/probe", probe)
+  |> on_get("/" home)
+  |> on_get("/products/:id" product)
+  |> on_post("/cart" add)
+  |> on_put("/cart/:id" replace)
+  |> on_patch("/cart/:id" change)
+  |> on_delete("/cart/:id" remove)
+  |> route(:options "/cart" options)
+  |> route(:any "/probe" probe)
 ```
 
 `on_get(app, path, handler)` is `route(app, :get, path, handler)`. `:any` accepts every method. A `HEAD` request uses the `GET` route, without a body in the response.
@@ -26,8 +26,8 @@ fn product(req) = "Product number {req.params.id}"
 fn file(req) = "Path asked: {req.params.path}"
 
 app("Example")
-  |> on_get("/products/:id", product)
-  |> on_get("/files/*path", file)
+  |> on_get("/products/:id" product)
+  |> on_get("/files/*path" file)
 ```
 
 - `:name` captures one segment; its value is a text (`parse_int(req.params.id)` for a number);
@@ -42,13 +42,13 @@ An application can hold another one under a prefix, with its own middlewares:
 
 ```rythme
 admin = app("Admin")
-  |> on_get("/", dashboard)
-  |> on_get("/orders", orders)
-  |> middleware(mw.basic_auth("admin", unwrap_or(env("ADMIN_PASSWORD"), "secret")))
+  |> on_get("/" dashboard)
+  |> on_get("/orders" orders)
+  |> middleware(mw.basic_auth("admin" unwrap_or(env("ADMIN_PASSWORD") "secret")))
 
 app("Shop")
-  |> on_get("/", home)
-  |> mount("/admin", admin)
+  |> on_get("/" home)
+  |> mount("/admin" admin)
 ```
 
 The routes of `admin` become `/admin` and `/admin/orders`, and only they go through its authentication.
@@ -56,7 +56,7 @@ The routes of `admin` become `/admin` and `/admin/orders`, and only they go thro
 ## Static files
 
 ```rythme
-app("Site") |> assets("/static", "public")
+app("Site") |> assets("/static" "public")
 ```
 
 `public/css/site.css` is served at `/static/css/site.css`. In production each file is read once, compressed with gzip, with an `ETag` (a `304` when the browser already has it) and `Cache-Control`; a name holding a fingerprint (`app.4f3a9c1e.js`) is kept for a year. During development, files are read again at each request.
@@ -64,9 +64,9 @@ app("Site") |> assets("/static", "public")
 ## Missing pages and errors
 
 ```rythme
-fn missing(req) = page({title: "Not found", status: 404}, [h1("This page does not exist")])
+fn missing(req) = page({title: "Not found" status: 404} [h1("This page does not exist")])
 
-fn failed(req, message) = page({title: "Oops", status: 500}, [h1("Something went wrong")])
+fn failed(req message) = page({title: "Oops" status: 500} [h1("Something went wrong")])
 
 app("Site")
   |> not_found(missing)

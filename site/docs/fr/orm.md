@@ -13,23 +13,23 @@ L'URL vient de la variable `DATABASE_URL`, ou de `database(app, "sqlite://app.db
 ## Modèles
 
 ```rythme
-projets = model("projets", {
-  nom: field(:text, {required: true, unique: true, max: 80}),
-  taches: has_many("taches", :projet),
+projets = model("projets" {
+  nom: field(:text {required: true unique: true max: 80})
+  taches: has_many("taches" :projet)
 })
 
-taches = model("taches", {
-  titre: field(:text, {required: true, min: 2, max: 120}),
-  fait: field(:bool, {default: false}),
-  priorite: field(:int, {default: 1, min: 1, max: 5}),
-  echeance: :date,
-  etiquettes: :json,
-  courriel: field(:text, {email: true}),
-  statut: field(:text, {one_of: ["ouverte", "fermee"], default: "ouverte"}),
-  projet: belongs_to("projets"),
+taches = model("taches" {
+  titre: field(:text {required: true min: 2 max: 120})
+  fait: field(:bool {default: false})
+  priorite: field(:int {default: 1 min: 1 max: 5})
+  echeance: :date
+  etiquettes: :json
+  courriel: field(:text {email: true})
+  statut: field(:text {one_of: ["ouverte" "fermee"] default: "ouverte"})
+  projet: belongs_to("projets")
 })
 
-app("Projets") |> models([projets, taches])
+app("Projets") |> models([projets taches])
 ```
 
 Chaque table a un `id` (entier, généré par la base) et, sauf `model(..., {timestamps: false})`, `created_at` et `updated_at`.
@@ -51,19 +51,19 @@ Un modèle est aussi la requête de toutes ses lignes. Chaque fonction en renvoi
 
 ```rythme
 urgentes = taches
-  |> where(:fait, false)                         # égal
-  |> where(:priorite, ">=", 4)                   # =, !=, <, <=, >, >=
-  |> where(:titre, :contains, "lait")            # :contains, :starts_with, :ends_with (sans casse)
-  |> where(:statut, :in, ["ouverte"])            # :in, :not_in
-  |> where(:echeance, None)                      # IS NULL
+  |> where(:fait false)                         # égal
+  |> where(:priorite ">=" 4)                   # =, !=, <, <=, >, >=
+  |> where(:titre :contains "lait")            # :contains, :starts_with, :ends_with (sans casse)
+  |> where(:statut :in ["ouverte"])            # :in, :not_in
+  |> where(:echeance None)                      # IS NULL
   |> order_by(:echeance)                         # :asc par défaut, ou :desc
-  |> order_by(:priorite, :desc)
+  |> order_by(:priorite :desc)
   |> limit(20)
   |> offset(40)
 
-au_choix = taches |> where_any([[:priorite, 5], [:fait, true]])       # l'une ou l'autre
-trouvees = taches |> search([:titre, :courriel], "ada")                # un texte dans l'un des champs
-legeres = taches |> pick([:id, :titre])                                # seulement ces champs
+au_choix = taches |> where_any([[:priorite 5] [:fait true]])       # l'une ou l'autre
+trouvees = taches |> search([:titre :courriel] "ada")                # un texte dans l'un des champs
+legeres = taches |> pick([:id :titre])                                # seulement ces champs
 ```
 
 ## Lire
@@ -71,12 +71,12 @@ legeres = taches |> pick([:id, :titre])                                # seuleme
 ```rythme
 db.all(q)                   # la liste des enregistrements
 db.first(q)                 # Some(enregistrement) ou None
-db.find(taches, 42)         # Some(enregistrement) ou None
+db.find(taches 42)         # Some(enregistrement) ou None
 db.count(q)                 # un Int
 db.exists(q)                # un Bool
-db.sum(q, :priorite)        # Some(n), ou None sans lignes ; aussi db.avg, db.min, db.max
-db.count_by(q, :statut)     # un Dict : valeur -> nombre de lignes
-db.paginate(q, 2, 20)       # {items, page, per_page, total, pages}
+db.sum(q :priorite)        # Some(n), ou None sans lignes ; aussi db.avg, db.min, db.max
+db.count_by(q :statut)     # un Dict : valeur -> nombre de lignes
+db.paginate(q 2 20)       # {items, page, per_page, total, pages}
 ```
 
 ## Relations
@@ -91,18 +91,18 @@ avec_taches = projets |> include(:taches) |> db.all      # chaque projet a la li
 ## Écrire
 
 ```rythme
-match db.insert(taches, {titre: "Lait", projet: maison})
-  Ok(tache) -> json(tache, 201)                          # avec son id et ses dates
-  Err(e) -> json(e, e.status)                            # {status: 422, error, fields: {titre: "..."}}
+match db.insert(taches {titre: "Lait" projet: maison})
+  Ok(tache) -> json(tache 201)                          # avec son id et ses dates
+  Err(e) -> json(e e.status)                            # {status: 422, error, fields: {titre: "..."}}
 end
 
-db.insert_all(taches, [{titre: "A"}, {titre: "B"}])      # toutes ou aucune
-db.update(taches, 42, {fait: true})                      # Ok(enregistrement), Err(:not_found), Err({status: 422...})
-db.save(taches, tache)                                   # insère sans id, met à jour avec un id
-db.update_where(taches |> where(:fait, true), {statut: "fermee"})   # Ok(nombre)
-db.delete(taches, 42)                                    # true si elle existait
-db.delete_where(taches |> where(:statut, "fermee"))      # le nombre de lignes
-db.validate(taches, {titre: "x"})                        # vérifie sans écrire
+db.insert_all(taches [{titre: "A"} {titre: "B"}])      # toutes ou aucune
+db.update(taches 42 {fait: true})                      # Ok(enregistrement), Err(:not_found), Err({status: 422...})
+db.save(taches tache)                                   # insère sans id, met à jour avec un id
+db.update_where(taches |> where(:fait true) {statut: "fermee"})   # Ok(nombre)
+db.delete(taches 42)                                    # true si elle existait
+db.delete_where(taches |> where(:statut "fermee"))      # le nombre de lignes
+db.validate(taches {titre: "x"})                        # vérifie sans écrire
 ```
 
 Chaque écriture est vérifiée par les règles des champs ; un champ inconnu est refusé ; une valeur `unique` déjà prise donne `422`.
@@ -111,8 +111,8 @@ Chaque écriture est vérifiée par les règles des champs ; un champ inconnu es
 
 ```rythme
 fn virement(req) = db.transaction do
-  db.update(comptes, 1, {solde: 50})?
-  db.update(comptes, 2, {solde: 150})?
+  db.update(comptes 1 {solde: 50})?
+  db.update(comptes 2 {solde: 150})?
   Ok("fait")
 end
 ```
@@ -131,7 +131,7 @@ Les `?` sont des paramètres (Facile les écrit `$1`, `$2`... pour PostgreSQL).
 ## Une API REST en une ligne
 
 ```rythme
-app("API") |> resource("/api/taches", taches)
+app("API") |> resource("/api/taches" taches)
 ```
 
 | Requête | Effet |

@@ -869,7 +869,7 @@ dependencies = [
 [[package]]
 name = "rythme"
 version = "1.0.0"
-source = "git+https://github.com/maxlestage/Rythme?branch=rebol#1e5440592962ee64aca516bdf20d2ae017559ebf"
+source = "git+https://github.com/maxlestage/Rythme?branch=rebol#fd002b873431e364ce85933d17e1e89e7e04ed0b"
 dependencies = [
  "rustyline",
  "rythme-macros",
@@ -878,7 +878,7 @@ dependencies = [
 [[package]]
 name = "rythme-macros"
 version = "1.0.0"
-source = "git+https://github.com/maxlestage/Rythme?branch=rebol#1e5440592962ee64aca516bdf20d2ae017559ebf"
+source = "git+https://github.com/maxlestage/Rythme?branch=rebol#fd002b873431e364ce85933d17e1e89e7e04ed0b"
 
 [[package]]
 name = "scopeguard"

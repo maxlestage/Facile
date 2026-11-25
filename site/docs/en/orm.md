@@ -13,23 +13,23 @@ The URL comes from the `DATABASE_URL` variable, or from `database(app, "sqlite:/
 ## Models
 
 ```rythme
-projects = model("projects", {
-  name: field(:text, {required: true, unique: true, max: 80}),
-  tasks: has_many("tasks", :project),
+projects = model("projects" {
+  name: field(:text {required: true unique: true max: 80})
+  tasks: has_many("tasks" :project)
 })
 
-tasks = model("tasks", {
-  title: field(:text, {required: true, min: 2, max: 120}),
-  done: field(:bool, {default: false}),
-  priority: field(:int, {default: 1, min: 1, max: 5}),
-  due: :date,
-  tags: :json,
-  email: field(:text, {email: true}),
-  status: field(:text, {one_of: ["open", "closed"], default: "open"}),
-  project: belongs_to("projects"),
+tasks = model("tasks" {
+  title: field(:text {required: true min: 2 max: 120})
+  done: field(:bool {default: false})
+  priority: field(:int {default: 1 min: 1 max: 5})
+  due: :date
+  tags: :json
+  email: field(:text {email: true})
+  status: field(:text {one_of: ["open" "closed"] default: "open"})
+  project: belongs_to("projects")
 })
 
-app("Projects") |> models([projects, tasks])
+app("Projects") |> models([projects tasks])
 ```
 
 Each table has an `id` (an integer made by the database) and, unless `model(..., {timestamps: false})`, `created_at` and `updated_at`.
@@ -51,19 +51,19 @@ A model is also the query of all its rows. Each function returns a new one:
 
 ```rythme
 urgent = tasks
-  |> where(:done, false)                         # equal
-  |> where(:priority, ">=", 4)                   # =, !=, <, <=, >, >=
-  |> where(:title, :contains, "milk")            # :contains, :starts_with, :ends_with (case ignored)
-  |> where(:status, :in, ["open"])               # :in, :not_in
-  |> where(:due, None)                           # IS NULL
+  |> where(:done false)                         # equal
+  |> where(:priority ">=" 4)                   # =, !=, <, <=, >, >=
+  |> where(:title :contains "milk")            # :contains, :starts_with, :ends_with (case ignored)
+  |> where(:status :in ["open"])               # :in, :not_in
+  |> where(:due None)                           # IS NULL
   |> order_by(:due)                              # :asc by default, or :desc
-  |> order_by(:priority, :desc)
+  |> order_by(:priority :desc)
   |> limit(20)
   |> offset(40)
 
-either = tasks |> where_any([[:priority, 5], [:done, true]])           # one or the other
-found = tasks |> search([:title, :email], "ada")                       # a text in one of the fields
-light = tasks |> pick([:id, :title])                                   # only these fields
+either = tasks |> where_any([[:priority 5] [:done true]])           # one or the other
+found = tasks |> search([:title :email] "ada")                       # a text in one of the fields
+light = tasks |> pick([:id :title])                                   # only these fields
 ```
 
 ## Reading
@@ -71,12 +71,12 @@ light = tasks |> pick([:id, :title])                                   # only th
 ```rythme
 db.all(q)                   # the list of records
 db.first(q)                 # Some(record) or None
-db.find(tasks, 42)          # Some(record) or None
+db.find(tasks 42)          # Some(record) or None
 db.count(q)                 # an Int
 db.exists(q)                # a Bool
-db.sum(q, :priority)        # Some(n), or None without rows; also db.avg, db.min, db.max
-db.count_by(q, :status)     # a Dict: value -> number of rows
-db.paginate(q, 2, 20)       # {items, page, per_page, total, pages}
+db.sum(q :priority)        # Some(n), or None without rows; also db.avg, db.min, db.max
+db.count_by(q :status)     # a Dict: value -> number of rows
+db.paginate(q 2 20)       # {items, page, per_page, total, pages}
 ```
 
 ## Relations
@@ -91,18 +91,18 @@ with_tasks = projects |> include(:tasks) |> db.all       # each project has the 
 ## Writing
 
 ```rythme
-match db.insert(tasks, {title: "Milk", project: home})
-  Ok(task) -> json(task, 201)                            # with its id and its dates
-  Err(e) -> json(e, e.status)                            # {status: 422, error, fields: {title: "..."}}
+match db.insert(tasks {title: "Milk" project: home})
+  Ok(task) -> json(task 201)                            # with its id and its dates
+  Err(e) -> json(e e.status)                            # {status: 422, error, fields: {title: "..."}}
 end
 
-db.insert_all(tasks, [{title: "A"}, {title: "B"}])       # all or none
-db.update(tasks, 42, {done: true})                       # Ok(record), Err(:not_found), Err({status: 422...})
-db.save(tasks, task)                                     # inserts without an id, updates with one
-db.update_where(tasks |> where(:done, true), {status: "closed"})   # Ok(number)
-db.delete(tasks, 42)                                     # true if it existed
-db.delete_where(tasks |> where(:status, "closed"))       # the number of rows
-db.validate(tasks, {title: "x"})                         # checks without writing
+db.insert_all(tasks [{title: "A"} {title: "B"}])       # all or none
+db.update(tasks 42 {done: true})                       # Ok(record), Err(:not_found), Err({status: 422...})
+db.save(tasks task)                                     # inserts without an id, updates with one
+db.update_where(tasks |> where(:done true) {status: "closed"})   # Ok(number)
+db.delete(tasks 42)                                     # true if it existed
+db.delete_where(tasks |> where(:status "closed"))       # the number of rows
+db.validate(tasks {title: "x"})                         # checks without writing
 ```
 
 Every write is checked by the rules of the fields; an unknown field is refused; a `unique` value already taken gives `422`.
@@ -111,8 +111,8 @@ Every write is checked by the rules of the fields; an unknown field is refused; 
 
 ```rythme
 fn transfer(req) = db.transaction do
-  db.update(accounts, 1, {balance: 50})?
-  db.update(accounts, 2, {balance: 150})?
+  db.update(accounts 1 {balance: 50})?
+  db.update(accounts 2 {balance: 150})?
   Ok("done")
 end
 ```
@@ -131,7 +131,7 @@ The `?` are parameters (Facile writes them `$1`, `$2`... for PostgreSQL).
 ## A REST API in one line
 
 ```rythme
-app("API") |> resource("/api/tasks", tasks)
+app("API") |> resource("/api/tasks" tasks)
 ```
 
 | Request | Effect |
