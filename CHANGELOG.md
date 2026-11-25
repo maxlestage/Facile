@@ -19,9 +19,7 @@ or a web address, `write`, and REBOL's names: `probe`, `ask`, `exists?`...):
   sample of the documentation and of the READMEs are formatted by the new
   `rythme fmt`; the browser side (`facile.wasm`) is built again with that
   Rythme, and the islands run the same in Chromium.
-- Facile depends on the Rythme of the branch that brings these names
-  (`rebol`); it goes back to `master` once that branch is
-  merged.
+- Facile depends on the Rythme of `master` that brings them.
 
 ## 0.1.4 — unreleased
 
