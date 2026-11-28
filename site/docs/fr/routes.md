@@ -16,7 +16,7 @@ app("Boutique")
   |> route(:any "/sonde" sonde)
 ```
 
-`on_get(app, chemin, handler)` est `route(app, :get, chemin, handler)`. `:any` accepte toutes les méthodes. Une requête `HEAD` utilise la route `GET`, sans corps dans la réponse.
+`on_get(app, chemin, handler)` est `route(app :get chemin handler)`. `:any` accepte toutes les méthodes. Une requête `HEAD` utilise la route `GET`, sans corps dans la réponse.
 
 ## Paramètres de chemin
 

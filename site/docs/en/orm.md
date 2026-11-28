@@ -8,7 +8,7 @@ Facile's ORM describes data with **models**, looks for it with **queries** that 
 | `sqlite://app.db` | SQLite, compiled into `facile`: nothing to install |
 | `postgres://user:pass@host/db` | PostgreSQL, over TLS (Heroku Postgres, Supabase...) |
 
-The URL comes from the `DATABASE_URL` variable, or from `database(app, "sqlite://app.db")`.
+The URL comes from the `DATABASE_URL` variable, or from `database(app "sqlite://app.db")`.
 
 ## Models
 
@@ -86,7 +86,7 @@ with_project = tasks |> include(:project) |> db.all      # each task has its `pr
 with_tasks = projects |> include(:tasks) |> db.all       # each project has the list of its tasks
 ```
 
-`belongs_to("projects")` stores `project_id`; `has_many("tasks", :project)` reads the tasks whose `project_id` is the project's id. `include` makes **one more query**, not one per row.
+`belongs_to("projects")` stores `project_id`; `has_many("tasks" :project)` reads the tasks whose `project_id` is the project's id. `include` makes **one more query**, not one per row.
 
 ## Writing
 
@@ -143,4 +143,4 @@ app("API") |> resource("/api/tasks" tasks)
 | `PATCH /api/tasks/:id` | changes the fields given |
 | `DELETE /api/tasks/:id` | `204`, or `404` |
 
-`resource(app, path, model, [:list, :show])` keeps only some actions. The middlewares of the application apply to these routes too.
+`resource(app path model [:list :show])` keeps only some actions. The middlewares of the application apply to these routes too.

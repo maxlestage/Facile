@@ -1,4 +1,4 @@
-//! `resource(app, "/api/taches", taches)`: a REST API for a model.
+//! `resource(app "/api/taches" taches)`: a REST API for a model.
 //!
 //! - `GET /api/taches`: the rows; `?fait=false` filters on a field,
 //!   `?q=lait` searches the text fields, `?order=-created_at` sorts (a `-`

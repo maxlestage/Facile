@@ -1,4 +1,4 @@
-//! Files served as they are: `assets(app, "/static", "public")`, and the
+//! Files served as they are: `assets(app "/static" "public")`, and the
 //! files of Facile itself under `/_facile/`.
 //!
 //! In production, each file is read once, with its gzip version and its

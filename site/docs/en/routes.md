@@ -16,7 +16,7 @@ app("Shop")
   |> route(:any "/probe" probe)
 ```
 
-`on_get(app, path, handler)` is `route(app, :get, path, handler)`. `:any` accepts every method. A `HEAD` request uses the `GET` route, without a body in the response.
+`on_get(app, path, handler)` is `route(app :get path handler)`. `:any` accepts every method. A `HEAD` request uses the `GET` route, without a body in the response.
 
 ## Path parameters
 

@@ -292,7 +292,7 @@ fn keep_file(from: &Value, to: Value) -> Value {
     }
 }
 
-/// `with_cookie(res, "theme", "sombre", {max_age: 86400})`.
+/// `with_cookie(res "theme" "sombre" {max_age: 86400})`.
 fn with_cookie(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
     let name = text_arg(a, 1, "with_cookie", span)?;
     if name.is_empty() || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-') {
@@ -368,7 +368,7 @@ fn no_content(_: &mut Interp, _: &[Value], _: Span) -> Fallible<Value> {
     Ok(response_value(204, Vec::new(), ""))
 }
 
-/// `problem(422, "le titre manque")`: a JSON error with a status.
+/// `problem(422 "le titre manque")`: a JSON error with a status.
 fn problem(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
     let code = int_arg(a, 0, "problem", span)?;
     let detail = match a.get(1) {
@@ -412,8 +412,8 @@ pub static RESPOND: &[Builtin] = &[
     host!("no_content", "no_content()", 0, 0, no_content,
         "An empty response (204).", "Une réponse vide (204)."),
     host!("problem", "problem(status, detail)", 1, 2, problem,
-        "A JSON error: `problem(422, \"le titre manque\")` gives `{\"error\": \"le titre manque\"}`.",
-        "Une erreur JSON : `problem(422, \"le titre manque\")` donne `{\"error\": \"le titre manque\"}`."),
+        "A JSON error: `problem(422 \"le titre manque\")` gives `{\"error\": \"le titre manque\"}`.",
+        "Une erreur JSON : `problem(422 \"le titre manque\")` donne `{\"error\": \"le titre manque\"}`."),
 ];
 
 #[cfg(test)]

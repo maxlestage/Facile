@@ -1,6 +1,6 @@
 # Sécurité
 
-Facile est sûr par défaut là où il le peut, et donne le reste en une ligne : `middleware(app, mw.shield())`.
+Facile est sûr par défaut là où il le peut, et donne le reste en une ligne : `middleware(app mw.shield())`.
 
 ## Ce qui est toujours vrai
 

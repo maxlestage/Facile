@@ -143,7 +143,7 @@ The first version of Facile, the web framework of the Rythme language.
   views, Markdown, responses built from any value, `not_found`, `on_error`,
   `on_start`, `settings`.
 - **The cache of purity**: pure `GET` responses are kept and given again.
-- **Middlewares**: in Rythme (`fn(req, next)`) and native (`mw.*`: shield,
+- **Middlewares**: in Rythme (`fn(req next)`) and native (`mw.*`: shield,
   WAF, robots, security headers, CSRF, CORS, rate limit, Basic, Bearer, body
   limit, gzip, request ids, timing, logs, HTTPS).
 - **ORM**: models with rules, queries as values, relations, aggregates,

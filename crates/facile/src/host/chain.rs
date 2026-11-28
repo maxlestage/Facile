@@ -1,4 +1,4 @@
-//! Middlewares written in Rythme: `fn journal(req, next) = next(req)`.
+//! Middlewares written in Rythme: `fn journal(req next) = next(req)`.
 //!
 //! Each middleware gets the request and `next`, a function that runs the
 //! rest of the chain (the next middlewares, then the handler) and returns

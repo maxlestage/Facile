@@ -1,4 +1,4 @@
-//! Building an application, as a value: `app("Tâches") |> route(:get, "/", accueil)`.
+//! Building an application, as a value: `app("Tâches") |> route(:get "/" accueil)`.
 //!
 //! Every function returns a new application (values never change); the
 //! server reads the last one, the value the file ends with.
@@ -86,7 +86,7 @@ fn route(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
     Ok(push(app, "routes", r))
 }
 
-/// `get(app, path, handler)` is `route(app, :get, path, handler)`: one function per method.
+/// `get(app, path, handler)` is `route(app :get path handler)`: one function per method.
 macro_rules! method_fns {
     ($( $f:ident => $m:literal ),*) => {
         $(
@@ -110,15 +110,15 @@ fn middleware(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
         _ => Err(error(
             "middleware",
             tr(
-                "a middleware is a function `fn(req, next)` or one of `mw` (`mw.cors([\"*\"])`)",
-                "un middleware est une fonction `fn(req, next)` ou l'un de `mw` (`mw.cors([\"*\"])`)",
+                "a middleware is a function `fn(req next)` or one of `mw` (`mw.cors([\"*\"])`)",
+                "un middleware est une fonction `fn(req next)` ou l'un de `mw` (`mw.cors([\"*\"])`)",
             ),
             span,
         )),
     }
 }
 
-/// `mount(app, "/admin", admin)`: the routes of `admin` under `/admin`, with its middlewares.
+/// `mount(app "/admin" admin)`: the routes of `admin` under `/admin`, with its middlewares.
 fn mount(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
     let app = app_arg(a, "mount", span)?;
     let prefix = text_arg(a, 1, "mount", span)?.trim_end_matches('/').to_string();
@@ -190,7 +190,7 @@ fn models(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
     Ok(out)
 }
 
-/// `resource(app, "/api/taches", taches)`: a REST API for a model.
+/// `resource(app "/api/taches" taches)`: a REST API for a model.
 fn resource(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
     let app = app_arg(a, "resource", span)?;
     let path = text_arg(a, 1, "resource", span)?.trim_end_matches('/').to_string();
@@ -255,7 +255,7 @@ fn on_start(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
     hook("on_start", "on_start", a, span)
 }
 
-/// `settings(app, {cache: false, body_limit: 1_000_000})`.
+/// `settings(app {cache: false body_limit: 1_000_000})`.
 fn settings(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
     let app = app_arg(a, "settings", span)?;
     let new = record_arg(a, 1, "settings", span)?;
@@ -285,33 +285,33 @@ pub static APP: &[Builtin] = &[
         "A new web application, without routes yet. The file ends with the application to serve.",
         "Une nouvelle application web, encore sans routes. Le fichier se termine par l'application à servir."),
     host!("route", "route(app, method, path, handler)", 4, 4, route,
-        "The application with one more route: `route(app, :get, \"/taches/:id\", detail)`. The handler gets the request.",
-        "L'application avec une route de plus : `route(app, :get, \"/taches/:id\", detail)`. Le handler reçoit la requête."),
+        "The application with one more route: `route(app :get \"/taches/:id\" detail)`. The handler gets the request.",
+        "L'application avec une route de plus : `route(app :get \"/taches/:id\" detail)`. Le handler reçoit la requête."),
     host!("on_get", "on_get(app, path, handler)", 3, 3, on_get,
-        "`route(app, :get, path, handler)`.", "`route(app, :get, chemin, handler)`."),
+        "`route(app :get path handler)`.", "`route(app :get chemin handler)`."),
     host!("on_post", "on_post(app, path, handler)", 3, 3, on_post,
-        "`route(app, :post, path, handler)`.", "`route(app, :post, chemin, handler)`."),
+        "`route(app :post path handler)`.", "`route(app :post chemin handler)`."),
     host!("on_put", "on_put(app, path, handler)", 3, 3, on_put,
-        "`route(app, :put, path, handler)`.", "`route(app, :put, chemin, handler)`."),
+        "`route(app :put path handler)`.", "`route(app :put chemin handler)`."),
     host!("on_patch", "on_patch(app, path, handler)", 3, 3, on_patch,
-        "`route(app, :patch, path, handler)`.", "`route(app, :patch, chemin, handler)`."),
+        "`route(app :patch path handler)`.", "`route(app :patch chemin handler)`."),
     host!("on_delete", "on_delete(app, path, handler)", 3, 3, on_delete,
-        "`route(app, :delete, path, handler)`.", "`route(app, :delete, chemin, handler)`."),
+        "`route(app :delete path handler)`.", "`route(app :delete chemin handler)`."),
     host!("middleware", "middleware(app, middleware)", 2, 2, middleware,
-        "The application with a middleware around every route: a function `fn(req, next)`, or one of `mw`.",
-        "L'application avec un middleware autour de chaque route : une fonction `fn(req, next)`, ou l'un de `mw`."),
+        "The application with a middleware around every route: a function `fn(req next)`, or one of `mw`.",
+        "L'application avec un middleware autour de chaque route : une fonction `fn(req next)`, ou l'un de `mw`."),
     host!("mount", "mount(app, prefix, other_app)", 3, 3, mount,
-        "The routes of another application under a prefix, with its middlewares: `mount(app, \"/admin\", admin)`.",
-        "Les routes d'une autre application sous un préfixe, avec ses middlewares : `mount(app, \"/admin\", admin)`."),
+        "The routes of another application under a prefix, with its middlewares: `mount(app \"/admin\" admin)`.",
+        "Les routes d'une autre application sous un préfixe, avec ses middlewares : `mount(app \"/admin\" admin)`."),
     host!("assets", "assets(app, prefix, folder)", 3, 3, assets,
-        "Serves the files of a folder: `assets(app, \"/static\", \"public\")`, with gzip, ETag and cache headers.",
-        "Sert les fichiers d'un dossier : `assets(app, \"/static\", \"public\")`, avec gzip, ETag et en-têtes de cache."),
+        "Serves the files of a folder: `assets(app \"/static\" \"public\")`, with gzip, ETag and cache headers.",
+        "Sert les fichiers d'un dossier : `assets(app \"/static\" \"public\")`, avec gzip, ETag et en-têtes de cache."),
     host!("models", "models(app, models)", 2, 2, models,
         "The models whose tables the server creates or completes when it starts.",
         "Les modèles dont le serveur crée ou complète les tables au démarrage."),
     host!("resource", "resource(app, path, model, actions)", 3, 4, resource,
-        "A REST API for a model: GET and POST on the path, GET, PUT, PATCH and DELETE on `path/:id`. Optional: the actions to keep (`[:list, :show]`).",
-        "Une API REST pour un modèle : GET et POST sur le chemin, GET, PUT, PATCH et DELETE sur `chemin/:id`. En option : les actions à garder (`[:list, :show]`)."),
+        "A REST API for a model: GET and POST on the path, GET, PUT, PATCH and DELETE on `path/:id`. Optional: the actions to keep (`[:list :show]`).",
+        "Une API REST pour un modèle : GET et POST sur le chemin, GET, PUT, PATCH et DELETE sur `chemin/:id`. En option : les actions à garder (`[:list :show]`)."),
     host!("not_found", "not_found(app, handler)", 2, 2, not_found,
         "The handler for paths without a route (a 404 page).", "Le handler des chemins sans route (une page 404)."),
     host!("on_error", "on_error(app, handler)", 2, 2, on_error,

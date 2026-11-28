@@ -2,7 +2,7 @@
 
 A middleware wraps the handlers: it sees the request before them and the response after them. Facile has two kinds, which combine.
 
-## In Rythme: `fn(req, next)`
+## In Rythme: `fn(req next)`
 
 ```rythme
 ## Adds a header to every response.

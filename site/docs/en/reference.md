@@ -7,17 +7,17 @@ Every function Facile adds to Rythme, with what it does. This page is written by
 | Function | Effect |
 |---|---|
 | `app(name)` | A new web application, without routes yet. The file ends with the application to serve. |
-| `route(app, method, path, handler)` | The application with one more route: `route(app, :get, "/taches/:id", detail)`. The handler gets the request. |
-| `on_get(app, path, handler)` | `route(app, :get, path, handler)`. |
-| `on_post(app, path, handler)` | `route(app, :post, path, handler)`. |
-| `on_put(app, path, handler)` | `route(app, :put, path, handler)`. |
-| `on_patch(app, path, handler)` | `route(app, :patch, path, handler)`. |
-| `on_delete(app, path, handler)` | `route(app, :delete, path, handler)`. |
-| `middleware(app, middleware)` | The application with a middleware around every route: a function `fn(req, next)`, or one of `mw`. |
-| `mount(app, prefix, other_app)` | The routes of another application under a prefix, with its middlewares: `mount(app, "/admin", admin)`. |
-| `assets(app, prefix, folder)` | Serves the files of a folder: `assets(app, "/static", "public")`, with gzip, ETag and cache headers. |
+| `route(app, method, path, handler)` | The application with one more route: `route(app :get "/taches/:id" detail)`. The handler gets the request. |
+| `on_get(app, path, handler)` | `route(app :get path handler)`. |
+| `on_post(app, path, handler)` | `route(app :post path handler)`. |
+| `on_put(app, path, handler)` | `route(app :put path handler)`. |
+| `on_patch(app, path, handler)` | `route(app :patch path handler)`. |
+| `on_delete(app, path, handler)` | `route(app :delete path handler)`. |
+| `middleware(app, middleware)` | The application with a middleware around every route: a function `fn(req next)`, or one of `mw`. |
+| `mount(app, prefix, other_app)` | The routes of another application under a prefix, with its middlewares: `mount(app "/admin" admin)`. |
+| `assets(app, prefix, folder)` | Serves the files of a folder: `assets(app "/static" "public")`, with gzip, ETag and cache headers. |
 | `models(app, models)` | The models whose tables the server creates or completes when it starts. |
-| `resource(app, path, model, actions)` | A REST API for a model: GET and POST on the path, GET, PUT, PATCH and DELETE on `path/:id`. Optional: the actions to keep (`[:list, :show]`). |
+| `resource(app, path, model, actions)` | A REST API for a model: GET and POST on the path, GET, PUT, PATCH and DELETE on `path/:id`. Optional: the actions to keep (`[:list :show]`). |
 | `not_found(app, handler)` | The handler for paths without a route (a 404 page). |
 | `on_error(app, handler)` | The handler called with the request and the error message when a handler fails. |
 | `on_start(app, function)` | A function called once when the server starts (to fill a database, say). |
@@ -47,7 +47,7 @@ Every function Facile adds to Rythme, with what it does. This page is written by
 | `with_cookie(response, name, value, options)` | The response with a cookie (HttpOnly, SameSite=Lax, Secure in production). Options: `{max_age, path, same_site, http_only, secure}`. |
 | `send_file(path)` | The content of a file, with its media type. |
 | `no_content()` | An empty response (204). |
-| `problem(status, detail)` | A JSON error: `problem(422, "le titre manque")` gives `{"error": "le titre manque"}`. |
+| `problem(status, detail)` | A JSON error: `problem(422 "le titre manque")` gives `{"error": "le titre manque"}`. |
 
 ## Middlewares
 
@@ -82,11 +82,11 @@ Every function Facile adds to Rythme, with what it does. This page is written by
 | Function | Effect |
 |---|---|
 | `page(settings, content...)` | A whole HTML page. Settings: `{title, description, lang, url, image, css: [...], js: [...], head: [...], json_ld, theme_color, alternates, status}`. |
-| `island(component, props)` | A component computed on the server and brought to life in the browser by WebAssembly: `island(compteur.component, {depart: 0})`. |
+| `island(component, props)` | A component computed on the server and brought to life in the browser by WebAssembly: `island(compteur.component {depart: 0})`. |
 | `stylesheet(href)` | A `<link rel="stylesheet">`. |
 | `script(src)` | A `<script type="module">` loaded from a file. |
-| `meta(attributes)` | A `<meta>` element: `meta({name: "author", content: "Ada"})`. |
-| `h(tag, attributes, children)` | Any HTML element: `h("input", {name: "q"})`, `h("my-widget", ["text"])`. |
+| `meta(attributes)` | A `<meta>` element: `meta({name: "author" content: "Ada"})`. |
+| `h(tag, attributes, children)` | Any HTML element: `h("input" {name: "q"})`, `h("my-widget", ["text"])`. |
 | `raw(html)` | HTML written as it is, without escaping (only for HTML you trust). |
 | `fragment(children, ...)` | Several children without an element around them. |
 | `render(view)` | The HTML of a view, as text. |
@@ -98,7 +98,7 @@ Every function Facile adds to Rythme, with what it does. This page is written by
 
 | Function | Effect |
 |---|---|
-| `with_effects(state, effects)` | What `init` or `update` returns to ask the browser for effects with the new state: `with_effects(s, [after(1000, :tic)])`. |
+| `with_effects(state, effects)` | What `init` or `update` returns to ask the browser for effects with the new state: `with_effects(s [after(1000 :tic)])`. |
 | `fetch_json(url, to_message)` | Fetches JSON; its result goes to `update` as `to_message(Ok(value))` or `to_message(Err(message))`. |
 | `send_json(method, url, body, to_message)` | Sends JSON (`:post`, `:put`, `:patch`, `:delete`); the answer goes to `update` like for `fetch_json`. |
 | `after(milliseconds, message)` | Gives the message to `update` after this many milliseconds. |
@@ -112,12 +112,12 @@ Every function Facile adds to Rythme, with what it does. This page is written by
 
 | Function | Effect |
 |---|---|
-| `model(table, fields, options)` | A model: a table and its fields. `model("taches", {titre: :text, fait: field(:bool, {default: false})})`. Options: `{timestamps: false}`. A model is also the query of all its rows. |
+| `model(table, fields, options)` | A model: a table and its fields. `model("taches" {titre: :text fait: field(:bool {default: false})})`. Options: `{timestamps: false}`. A model is also the query of all its rows. |
 | `field(kind, options)` | A field with rules: `field(:text, {required: true, min: 3, max: 120, unique: true, email: true, one_of: [...], default: "x", index: true})`. |
-| `belongs_to(table, options)` | A relation to a row of another table: `projet: belongs_to("projets")` stores `projet_id`; `include(q, :projet)` adds the row. |
-| `has_many(table, field)` | The rows of another table that refer to this one: `taches: has_many("taches", :projet)`; `include(q, :taches)` adds them. |
-| `where(query, field, operator, value)` | Keeps the rows where the field has the value (`where(q, :fait, false)`), or compares it: `where(q, :prix, "<", 10)`, `:contains`, `:starts_with`, `:in`... |
-| `where_any(query, conditions)` | Keeps the rows that meet one of the conditions: `where_any(q, [[:ville, "Paris"], [:ville, "Lyon"]])`. |
+| `belongs_to(table, options)` | A relation to a row of another table: `projet: belongs_to("projets")` stores `projet_id`; `include(q :projet)` adds the row. |
+| `has_many(table, field)` | The rows of another table that refer to this one: `taches: has_many("taches", :projet)`; `include(q :taches)` adds them. |
+| `where(query, field, operator, value)` | Keeps the rows where the field has the value (`where(q :fait false)`), or compares it: `where(q :prix "<" 10)`, `:contains`, `:starts_with`, `:in`... |
+| `where_any(query, conditions)` | Keeps the rows that meet one of the conditions: `where_any(q [[:ville "Paris"] [:ville "Lyon"]])`. |
 | `search(query, fields, text)` | The rows where one of the fields contains the text (case ignored). |
 | `order_by(query, field, direction)` | Sorts the rows by a field, :asc (the default) or :desc; several calls sort by several fields. |
 | `limit(query, n)` | At most n rows. |
@@ -139,7 +139,7 @@ Every function Facile adds to Rythme, with what it does. This page is written by
 | `db.min(query, field)` | The smallest value: `Some(x)` or `None`. |
 | `db.max(query, field)` | The largest value: `Some(x)` or `None`. |
 | `db.count_by(query, field)` | How many rows for each value of a field, as a Dict. |
-| `db.insert(model, record)` | Adds a row, checked by the rules of the fields: `Ok(record with its id)` or `Err({status: 422, error, fields})`. |
+| `db.insert(model, record)` | Adds a row, checked by the rules of the fields: `Ok(record with its id)` or `Err({status: 422 error fields})`. |
 | `db.insert_all(model, records)` | Adds several rows, all or none: `Ok(records)` or the first `Err`. |
 | `db.update(model, id, changes)` | Changes the fields given of a row: `Ok(record)`, `Err(:not_found)` or `Err({status: 422, ...})`. |
 | `db.save(model, record)` | Inserts a record without id, updates a record with one. |

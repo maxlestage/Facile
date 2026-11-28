@@ -1,5 +1,5 @@
 //! What a component asks the browser to do, besides showing its view:
-//! `with_effects(state, [fetch_json("/api/taches", Chargees)])`.
+//! `with_effects(state [fetch_json("/api/taches" Chargees)])`.
 //!
 //! An effect is a value too; the browser runs it, then gives its result to
 //! the component as a message. On the server (computing the first view),
@@ -26,7 +26,7 @@ fn with_effects(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
         _ => {
             return Err(error(
                 "with_effects",
-                tr("give a list of effects: `[after(500, :tic)]`", "donnez une liste d'effets : `[after(500, :tic)]`"),
+                tr("give a list of effects: `[after(500 :tic)]`", "donnez une liste d'effets : `[after(500 :tic)]`"),
                 span,
             ))
         }
@@ -91,8 +91,8 @@ fn focus(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
 
 pub static EFFECTS: &[Builtin] = &[
     host!("with_effects", "with_effects(state, effects)", 2, 2, with_effects,
-        "What `init` or `update` returns to ask the browser for effects with the new state: `with_effects(s, [after(1000, :tic)])`.",
-        "Ce que renvoie `init` ou `update` pour demander des effets au navigateur avec le nouvel état : `with_effects(s, [after(1000, :tic)])`."),
+        "What `init` or `update` returns to ask the browser for effects with the new state: `with_effects(s [after(1000 :tic)])`.",
+        "Ce que renvoie `init` ou `update` pour demander des effets au navigateur avec le nouvel état : `with_effects(s [after(1000 :tic)])`."),
     host!("fetch_json", "fetch_json(url, to_message)", 2, 2, fetch_json,
         "Fetches JSON; its result goes to `update` as `to_message(Ok(value))` or `to_message(Err(message))`.",
         "Va chercher du JSON ; son résultat arrive à `update` comme `to_message(Ok(valeur))` ou `to_message(Err(message))`."),

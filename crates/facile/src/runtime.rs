@@ -48,7 +48,7 @@ pub fn production() -> bool {
 
 static APP_LANG: OnceLock<String> = OnceLock::new();
 
-/// The language the application asked for (`settings(app, {lang: "fr"})`):
+/// The language the application asked for (`settings(app {lang: "fr"})`):
 /// its pages' default `lang`, and the language of Facile's messages.
 pub fn set_app_lang(code: &str) {
     if let Some(l) = rythme::lang::parse(code) {

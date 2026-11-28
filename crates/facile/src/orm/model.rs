@@ -1,4 +1,4 @@
-//! Models: `taches = model("taches", {titre: field(:text, {required: true}), fait: :bool})`.
+//! Models: `taches = model("taches" {titre: field(:text {required: true}) fait: :bool})`.
 
 use std::rc::Rc;
 

@@ -46,7 +46,7 @@ Rythme compiled to WebAssembly, and a security shield in front of every request.
 |---|---|
 | ⚡ **As fast as Vitesse** | One thread per core, epoll, pipelining, no lock and no allocation on the way of a request. On Vitesse's own benchmark, Facile and Vitesse are neck and neck, far ahead of actix-web and axum (see below). |
 | ♻️ **The cache of purity** | Rythme is purely functional: a response that only reads its path is kept and given again for ~70 ns of CPU, with nothing to configure. Facile watches what the handler reads (headers, database, clock, files) and only keeps what is safe. |
-| 🧅 **Middlewares** | In Rythme (`fn(req, next)`), or native in Rust with `mw`: WAF, robots, security headers and CSP, CSRF, CORS, rate limits, Basic/Bearer, gzip, request ids, logs. |
+| 🧅 **Middlewares** | In Rythme (`fn(req next)`), or native in Rust with `mw`: WAF, robots, security headers and CSP, CSRF, CORS, rate limits, Basic/Bearer, gzip, request ids, logs. |
 | 🗄️ **An ORM that does it all** | Models, composable queries, validation, relations (`include`), aggregates, pages, transactions (savepoints), hand-written SQL, automatic migrations, a REST API in one line. In memory, SQLite or PostgreSQL. |
 | 🏝️ **A WebAssembly front end** | Components are written in Rythme (`init`, `update`, `view`, effects) and run in the browser. The server sends their first view as HTML; only what changes is written again. |
 | 🔎 **Pages and SEO** | `page({...})` writes the whole `<head>`: title, description, canonical URL, Open Graph, Twitter, JSON-LD, hreflang. `markdown()` renders documentation, with Rythme code colored. |

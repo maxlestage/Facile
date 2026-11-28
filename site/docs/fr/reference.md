@@ -7,17 +7,17 @@ Toutes les fonctions que Facile ajoute à Rythme, avec ce qu'elles font. Cette p
 | Fonction | Effet |
 |---|---|
 | `app(name)` | Une nouvelle application web, encore sans routes. Le fichier se termine par l'application à servir. |
-| `route(app, method, path, handler)` | L'application avec une route de plus : `route(app, :get, "/taches/:id", detail)`. Le handler reçoit la requête. |
-| `on_get(app, path, handler)` | `route(app, :get, chemin, handler)`. |
-| `on_post(app, path, handler)` | `route(app, :post, chemin, handler)`. |
-| `on_put(app, path, handler)` | `route(app, :put, chemin, handler)`. |
-| `on_patch(app, path, handler)` | `route(app, :patch, chemin, handler)`. |
-| `on_delete(app, path, handler)` | `route(app, :delete, chemin, handler)`. |
-| `middleware(app, middleware)` | L'application avec un middleware autour de chaque route : une fonction `fn(req, next)`, ou l'un de `mw`. |
-| `mount(app, prefix, other_app)` | Les routes d'une autre application sous un préfixe, avec ses middlewares : `mount(app, "/admin", admin)`. |
-| `assets(app, prefix, folder)` | Sert les fichiers d'un dossier : `assets(app, "/static", "public")`, avec gzip, ETag et en-têtes de cache. |
+| `route(app, method, path, handler)` | L'application avec une route de plus : `route(app :get "/taches/:id" detail)`. Le handler reçoit la requête. |
+| `on_get(app, path, handler)` | `route(app :get chemin handler)`. |
+| `on_post(app, path, handler)` | `route(app :post chemin handler)`. |
+| `on_put(app, path, handler)` | `route(app :put chemin handler)`. |
+| `on_patch(app, path, handler)` | `route(app :patch chemin handler)`. |
+| `on_delete(app, path, handler)` | `route(app :delete chemin handler)`. |
+| `middleware(app, middleware)` | L'application avec un middleware autour de chaque route : une fonction `fn(req next)`, ou l'un de `mw`. |
+| `mount(app, prefix, other_app)` | Les routes d'une autre application sous un préfixe, avec ses middlewares : `mount(app "/admin" admin)`. |
+| `assets(app, prefix, folder)` | Sert les fichiers d'un dossier : `assets(app "/static" "public")`, avec gzip, ETag et en-têtes de cache. |
 | `models(app, models)` | Les modèles dont le serveur crée ou complète les tables au démarrage. |
-| `resource(app, path, model, actions)` | Une API REST pour un modèle : GET et POST sur le chemin, GET, PUT, PATCH et DELETE sur `chemin/:id`. En option : les actions à garder (`[:list, :show]`). |
+| `resource(app, path, model, actions)` | Une API REST pour un modèle : GET et POST sur le chemin, GET, PUT, PATCH et DELETE sur `chemin/:id`. En option : les actions à garder (`[:list :show]`). |
 | `not_found(app, handler)` | Le handler des chemins sans route (une page 404). |
 | `on_error(app, handler)` | Le handler appelé avec la requête et le message d'erreur quand un handler échoue. |
 | `on_start(app, function)` | Une fonction appelée une fois au démarrage du serveur (pour remplir une base, par exemple). |
@@ -47,7 +47,7 @@ Toutes les fonctions que Facile ajoute à Rythme, avec ce qu'elles font. Cette p
 | `with_cookie(response, name, value, options)` | La réponse avec un cookie (HttpOnly, SameSite=Lax, Secure en production). Options : `{max_age, path, same_site, http_only, secure}`. |
 | `send_file(path)` | Le contenu d'un fichier, avec son type. |
 | `no_content()` | Une réponse vide (204). |
-| `problem(status, detail)` | Une erreur JSON : `problem(422, "le titre manque")` donne `{"error": "le titre manque"}`. |
+| `problem(status, detail)` | Une erreur JSON : `problem(422 "le titre manque")` donne `{"error": "le titre manque"}`. |
 
 ## Middlewares
 
@@ -82,11 +82,11 @@ Toutes les fonctions que Facile ajoute à Rythme, avec ce qu'elles font. Cette p
 | Fonction | Effet |
 |---|---|
 | `page(settings, content...)` | Une page HTML entière. Réglages : `{title, description, lang, url, image, css: [...], js: [...], head: [...], json_ld, theme_color, alternates, status}`. |
-| `island(component, props)` | Un composant calculé sur le serveur puis animé dans le navigateur par WebAssembly : `island(compteur.component, {depart: 0})`. |
+| `island(component, props)` | Un composant calculé sur le serveur puis animé dans le navigateur par WebAssembly : `island(compteur.component {depart: 0})`. |
 | `stylesheet(href)` | Un `<link rel="stylesheet">`. |
 | `script(src)` | Un `<script type="module">` chargé depuis un fichier. |
-| `meta(attributes)` | Un élément `<meta>` : `meta({name: "author", content: "Ada"})`. |
-| `h(tag, attributes, children)` | N'importe quel élément HTML : `h("input", {name: "q"})`, `h("mon-widget", ["texte"])`. |
+| `meta(attributes)` | Un élément `<meta>` : `meta({name: "author" content: "Ada"})`. |
+| `h(tag, attributes, children)` | N'importe quel élément HTML : `h("input" {name: "q"})`, `h("mon-widget", ["texte"])`. |
 | `raw(html)` | Du HTML écrit tel quel, sans échappement (seulement pour du HTML de confiance). |
 | `fragment(children, ...)` | Plusieurs enfants sans élément autour. |
 | `render(view)` | Le HTML d'une vue, en texte. |
@@ -98,7 +98,7 @@ Toutes les fonctions que Facile ajoute à Rythme, avec ce qu'elles font. Cette p
 
 | Fonction | Effet |
 |---|---|
-| `with_effects(state, effects)` | Ce que renvoie `init` ou `update` pour demander des effets au navigateur avec le nouvel état : `with_effects(s, [after(1000, :tic)])`. |
+| `with_effects(state, effects)` | Ce que renvoie `init` ou `update` pour demander des effets au navigateur avec le nouvel état : `with_effects(s [after(1000 :tic)])`. |
 | `fetch_json(url, to_message)` | Va chercher du JSON ; son résultat arrive à `update` comme `to_message(Ok(valeur))` ou `to_message(Err(message))`. |
 | `send_json(method, url, body, to_message)` | Envoie du JSON (`:post`, `:put`, `:patch`, `:delete`) ; la réponse arrive à `update` comme pour `fetch_json`. |
 | `after(milliseconds, message)` | Donne le message à `update` après ce nombre de millisecondes. |
@@ -112,12 +112,12 @@ Toutes les fonctions que Facile ajoute à Rythme, avec ce qu'elles font. Cette p
 
 | Fonction | Effet |
 |---|---|
-| `model(table, fields, options)` | Un modèle : une table et ses champs. `model("taches", {titre: :text, fait: field(:bool, {default: false})})`. Options : `{timestamps: false}`. Un modèle est aussi la requête de toutes ses lignes. |
+| `model(table, fields, options)` | Un modèle : une table et ses champs. `model("taches" {titre: :text fait: field(:bool {default: false})})`. Options : `{timestamps: false}`. Un modèle est aussi la requête de toutes ses lignes. |
 | `field(kind, options)` | Un champ avec des règles : `field(:text, {required: true, min: 3, max: 120, unique: true, email: true, one_of: [...], default: "x", index: true})`. |
-| `belongs_to(table, options)` | Une relation vers une ligne d'une autre table : `projet: belongs_to("projets")` enregistre `projet_id` ; `include(q, :projet)` ajoute la ligne. |
-| `has_many(table, field)` | Les lignes d'une autre table qui renvoient à celle-ci : `taches: has_many("taches", :projet)` ; `include(q, :taches)` les ajoute. |
-| `where(query, field, operator, value)` | Garde les lignes où le champ a la valeur (`where(q, :fait, false)`), ou le compare : `where(q, :prix, "<", 10)`, `:contains`, `:starts_with`, `:in`... |
-| `where_any(query, conditions)` | Garde les lignes qui remplissent l'une des conditions : `where_any(q, [[:ville, "Paris"], [:ville, "Lyon"]])`. |
+| `belongs_to(table, options)` | Une relation vers une ligne d'une autre table : `projet: belongs_to("projets")` enregistre `projet_id` ; `include(q :projet)` ajoute la ligne. |
+| `has_many(table, field)` | Les lignes d'une autre table qui renvoient à celle-ci : `taches: has_many("taches", :projet)` ; `include(q :taches)` les ajoute. |
+| `where(query, field, operator, value)` | Garde les lignes où le champ a la valeur (`where(q :fait false)`), ou le compare : `where(q :prix "<" 10)`, `:contains`, `:starts_with`, `:in`... |
+| `where_any(query, conditions)` | Garde les lignes qui remplissent l'une des conditions : `where_any(q [[:ville "Paris"] [:ville "Lyon"]])`. |
 | `search(query, fields, text)` | Les lignes où l'un des champs contient le texte (sans tenir compte de la casse). |
 | `order_by(query, field, direction)` | Trie les lignes selon un champ, :asc (par défaut) ou :desc ; plusieurs appels trient selon plusieurs champs. |
 | `limit(query, n)` | Au plus n lignes. |
@@ -139,7 +139,7 @@ Toutes les fonctions que Facile ajoute à Rythme, avec ce qu'elles font. Cette p
 | `db.min(query, field)` | La plus petite valeur : `Some(x)` ou `None`. |
 | `db.max(query, field)` | La plus grande valeur : `Some(x)` ou `None`. |
 | `db.count_by(query, field)` | Combien de lignes pour chaque valeur d'un champ, en Dict. |
-| `db.insert(model, record)` | Ajoute une ligne, vérifiée par les règles des champs : `Ok(enregistrement avec son id)` ou `Err({status: 422, error, fields})`. |
+| `db.insert(model, record)` | Ajoute une ligne, vérifiée par les règles des champs : `Ok(enregistrement avec son id)` ou `Err({status: 422 error fields})`. |
 | `db.insert_all(model, records)` | Ajoute plusieurs lignes, toutes ou aucune : `Ok(enregistrements)` ou la première `Err`. |
 | `db.update(model, id, changes)` | Change les champs donnés d'une ligne : `Ok(enregistrement)`, `Err(:not_found)` ou `Err({status: 422, ...})`. |
 | `db.save(model, record)` | Insère un enregistrement sans id, met à jour un enregistrement qui en a un. |

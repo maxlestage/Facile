@@ -2,7 +2,7 @@
 
 Un middleware entoure les handlers : il voit la requête avant eux et la réponse après eux. Facile en a de deux sortes, qui se combinent.
 
-## En Rythme : `fn(req, next)`
+## En Rythme : `fn(req next)`
 
 ```rythme
 ## Ajoute un en-tête à toutes les réponses.

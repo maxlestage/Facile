@@ -1,4 +1,4 @@
-//! Queries, as values: `taches |> where(:fait, false) |> order_by(:priorite, :desc) |> limit(10)`.
+//! Queries, as values: `taches |> where(:fait false) |> order_by(:priorite :desc) |> limit(10)`.
 //!
 //! A query only describes rows; `db.all(q)`, `db.first(q)`, `db.count(q)`...
 //! run it. The same query becomes SQL (SQLite, PostgreSQL) or is evaluated

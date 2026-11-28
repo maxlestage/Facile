@@ -40,8 +40,8 @@ fn bad_kind(f: &str, span: Span) -> Box<rythme::diagnostic::Diagnostic> {
     error(
         f,
         tr(
-            "a field is a kind (:text, :int, :float, :bool, :date, :datetime, :json), `field(kind, options)`, `belongs_to(\"table\")` or `has_many(\"table\", \"field\")`",
-            "un champ est une sorte (:text, :int, :float, :bool, :date, :datetime, :json), `field(sorte, options)`, `belongs_to(\"table\")` ou `has_many(\"table\", \"champ\")`",
+            "a field is a kind (:text, :int, :float, :bool, :date, :datetime, :json), `field(kind, options)`, `belongs_to(\"table\")` or `has_many(\"table\" \"field\")`",
+            "un champ est une sorte (:text, :int, :float, :bool, :date, :datetime, :json), `field(sorte, options)`, `belongs_to(\"table\")` ou `has_many(\"table\" \"champ\")`",
         ),
         span,
     )
@@ -120,8 +120,8 @@ fn field_fn(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
             return Err(error(
                 "field",
                 tr(
-                    "the options are a record: `{required: true, max: 80}`",
-                    "les options sont un enregistrement : `{required: true, max: 80}`",
+                    "the options are a record: `{required: true max: 80}`",
+                    "les options sont un enregistrement : `{required: true max: 80}`",
                 ),
                 span,
             ))
@@ -218,7 +218,7 @@ fn condition(f: &str, a: &[Value], span: Span) -> Fallible<Value> {
     Ok(util::record(vec![("field", Value::text(&name)), ("op", Value::text(&op)), ("value", value)]))
 }
 
-/// `where(q, :fait, false)`, `where(q, :priorite, ">", 2)`, `where(q, :titre, :contains, "lait")`.
+/// `where(q :fait false)`, `where(q :priorite ">" 2)`, `where(q :titre :contains "lait")`.
 fn where_fn(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
     let q = query_arg(a, "where", span)?;
     let c = condition("where", &a[1..], span)?;
@@ -226,13 +226,13 @@ fn where_fn(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
     Ok(push(q, "wheres", c))
 }
 
-/// `where_any(q, [[:titre, :contains, "x"], [:notes, :contains, "x"]])`: one of them is enough.
+/// `where_any(q [[:titre :contains "x"] [:notes :contains "x"]])`: one of them is enough.
 fn where_any(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
     let q = query_arg(a, "where_any", span)?;
     let Value::List(l) = &a[1] else {
         return Err(error(
             "where_any",
-            tr("give a list of conditions: `[[:a, 1], [:b, \">\", 2]]`", "donnez une liste de conditions : `[[:a, 1], [:b, \">\", 2]]`"),
+            tr("give a list of conditions: `[[:a 1] [:b \">\" 2]]`", "donnez une liste de conditions : `[[:a 1] [:b \">\" 2]]`"),
             span,
         ));
     };
@@ -258,7 +258,7 @@ fn where_any(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
     Ok(push(q, "wheres", util::record(vec![("any", Value::list(conds))])))
 }
 
-/// `search(q, [:titre, :notes], "lait")`: the rows where one of the fields contains the text.
+/// `search(q [:titre :notes] "lait")`: the rows where one of the fields contains the text.
 fn search(it: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
     let text = text_arg(a, 2, "search", span)?.trim().to_string();
     if text.is_empty() {
@@ -319,7 +319,7 @@ fn include(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
 fn pick(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
     let q = query_arg(a, "pick", span)?;
     let Value::List(l) = &a[1] else {
-        return Err(error("pick", tr("give a list of fields: `[:id, :titre]`", "donnez une liste de champs : `[:id, :titre]`"), span));
+        return Err(error("pick", tr("give a list of fields: `[:id :titre]`", "donnez une liste de champs : `[:id :titre]`"), span));
     };
     let mut out = Value::Record(Rc::new(q.clone()));
     for f in l.iter() {
@@ -686,7 +686,7 @@ fn unique_taken(m: &Model, f: &Field, c: &Cell, current: Option<i64>) -> bool {
     matches!(super::aggregate(m, &q, "count", "*"), Ok(Cell::Int(n)) if n > 0)
 }
 
-/// `Err({status: 422, error: "...", fields: {titre: "est obligatoire"}})`.
+/// `Err({status: 422 error: "..." fields: {titre: "est obligatoire"}})`.
 fn invalid(it: &Interp, errors: Vec<(String, String)>) -> Value {
     let mut fields = Record::new();
     for (k, v) in &errors {
@@ -811,7 +811,7 @@ fn db_exists(it: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
     Ok(Value::Bool(matches!(aggregate(it, a, span, "count")?, Value::Int(n) if n > 0)))
 }
 
-/// `db.count_by(q, :statut)`: how many rows for each value of the field, as a Dict.
+/// `db.count_by(q :statut)`: how many rows for each value of the field, as a Dict.
 fn db_count_by(it: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
     let f = name_arg(a, 1, "db.count_by", span)?;
     let q = query_arg(a, "db.count_by", span)?;
@@ -1067,23 +1067,23 @@ fn db_validate(it: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
 
 pub static ORM: &[Builtin] = &[
     host!("model", "model(table, fields, options)", 2, 3, model,
-        "A model: a table and its fields. `model(\"taches\", {titre: :text, fait: field(:bool, {default: false})})`. Options: `{timestamps: false}`. A model is also the query of all its rows.",
-        "Un modèle : une table et ses champs. `model(\"taches\", {titre: :text, fait: field(:bool, {default: false})})`. Options : `{timestamps: false}`. Un modèle est aussi la requête de toutes ses lignes."),
+        "A model: a table and its fields. `model(\"taches\" {titre: :text fait: field(:bool {default: false})})`. Options: `{timestamps: false}`. A model is also the query of all its rows.",
+        "Un modèle : une table et ses champs. `model(\"taches\" {titre: :text fait: field(:bool {default: false})})`. Options : `{timestamps: false}`. Un modèle est aussi la requête de toutes ses lignes."),
     host!("field", "field(kind, options)", 1, 2, field_fn,
         "A field with rules: `field(:text, {required: true, min: 3, max: 120, unique: true, email: true, one_of: [...], default: \"x\", index: true})`.",
         "Un champ avec des règles : `field(:text, {required: true, min: 3, max: 120, unique: true, email: true, one_of: [...], default: \"x\", index: true})`."),
     host!("belongs_to", "belongs_to(table, options)", 1, 2, belongs_to,
-        "A relation to a row of another table: `projet: belongs_to(\"projets\")` stores `projet_id`; `include(q, :projet)` adds the row.",
-        "Une relation vers une ligne d'une autre table : `projet: belongs_to(\"projets\")` enregistre `projet_id` ; `include(q, :projet)` ajoute la ligne."),
+        "A relation to a row of another table: `projet: belongs_to(\"projets\")` stores `projet_id`; `include(q :projet)` adds the row.",
+        "Une relation vers une ligne d'une autre table : `projet: belongs_to(\"projets\")` enregistre `projet_id` ; `include(q :projet)` ajoute la ligne."),
     host!("has_many", "has_many(table, field)", 2, 2, has_many,
-        "The rows of another table that refer to this one: `taches: has_many(\"taches\", :projet)`; `include(q, :taches)` adds them.",
-        "Les lignes d'une autre table qui renvoient à celle-ci : `taches: has_many(\"taches\", :projet)` ; `include(q, :taches)` les ajoute."),
+        "The rows of another table that refer to this one: `taches: has_many(\"taches\", :projet)`; `include(q :taches)` adds them.",
+        "Les lignes d'une autre table qui renvoient à celle-ci : `taches: has_many(\"taches\", :projet)` ; `include(q :taches)` les ajoute."),
     host!("where", "where(query, field, operator, value)", 3, 4, where_fn,
-        "Keeps the rows where the field has the value (`where(q, :fait, false)`), or compares it: `where(q, :prix, \"<\", 10)`, `:contains`, `:starts_with`, `:in`...",
-        "Garde les lignes où le champ a la valeur (`where(q, :fait, false)`), ou le compare : `where(q, :prix, \"<\", 10)`, `:contains`, `:starts_with`, `:in`..."),
+        "Keeps the rows where the field has the value (`where(q :fait false)`), or compares it: `where(q :prix \"<\" 10)`, `:contains`, `:starts_with`, `:in`...",
+        "Garde les lignes où le champ a la valeur (`where(q :fait false)`), ou le compare : `where(q :prix \"<\" 10)`, `:contains`, `:starts_with`, `:in`..."),
     host!("where_any", "where_any(query, conditions)", 2, 2, where_any,
-        "Keeps the rows that meet one of the conditions: `where_any(q, [[:ville, \"Paris\"], [:ville, \"Lyon\"]])`.",
-        "Garde les lignes qui remplissent l'une des conditions : `where_any(q, [[:ville, \"Paris\"], [:ville, \"Lyon\"]])`."),
+        "Keeps the rows that meet one of the conditions: `where_any(q [[:ville \"Paris\"] [:ville \"Lyon\"]])`.",
+        "Garde les lignes qui remplissent l'une des conditions : `where_any(q [[:ville \"Paris\"] [:ville \"Lyon\"]])`."),
     host!("search", "search(query, fields, text)", 3, 3, search,
         "The rows where one of the fields contains the text (case ignored).", "Les lignes où l'un des champs contient le texte (sans tenir compte de la casse)."),
     host!("order_by", "order_by(query, field, direction)", 2, 3, order_by,
@@ -1097,176 +1097,181 @@ pub static ORM: &[Builtin] = &[
     host!("pick", "pick(query, fields)", 2, 2, pick, "Only these fields in the records.", "Seulement ces champs dans les enregistrements."),
 ];
 
-pub static DB: &[Builtin] =
-    &[
-        host!(
-            "all",
-            "db.all(query)",
-            1,
-            1,
-            db_all,
-            "The rows of a query, as a list of records.",
-            "Les lignes d'une requête, en liste d'enregistrements."
-        ),
-        host!(
-            "first",
-            "db.first(query)",
-            1,
-            1,
-            db_first,
-            "The first row: `Some(record)` or `None`.",
-            "La première ligne : `Some(enregistrement)` ou `None`."
-        ),
-        host!(
-            "find",
-            "db.find(model, id)",
-            2,
-            2,
-            db_find,
-            "The row of this id: `Some(record)` or `None`.",
-            "La ligne de cet id : `Some(enregistrement)` ou `None`."
-        ),
-        host!("count", "db.count(query)", 1, 1, db_count, "The number of rows.", "Le nombre de lignes."),
-        host!("exists", "db.exists(query)", 1, 1, db_exists, "Whether the query has rows.", "Si la requête a des lignes."),
-        host!(
-            "sum",
-            "db.sum(query, field)",
-            2,
-            2,
-            db_sum,
-            "The sum of a field: `Some(n)`, or `None` without rows.",
-            "La somme d'un champ : `Some(n)`, ou `None` sans lignes.",
-        ),
-        host!(
-            "avg",
-            "db.avg(query, field)",
-            2,
-            2,
-            db_avg,
-            "The average of a field: `Some(x)` or `None`.",
-            "La moyenne d'un champ : `Some(x)` ou `None`."
-        ),
-        host!(
-            "min",
-            "db.min(query, field)",
-            2,
-            2,
-            db_min,
-            "The smallest value: `Some(x)` or `None`.",
-            "La plus petite valeur : `Some(x)` ou `None`."
-        ),
-        host!(
-            "max",
-            "db.max(query, field)",
-            2,
-            2,
-            db_max,
-            "The largest value: `Some(x)` or `None`.",
-            "La plus grande valeur : `Some(x)` ou `None`."
-        ),
-        host!(
-            "count_by",
-            "db.count_by(query, field)",
-            2,
-            2,
-            db_count_by,
-            "How many rows for each value of a field, as a Dict.",
-            "Combien de lignes pour chaque valeur d'un champ, en Dict."
-        ),
-        host!("insert", "db.insert(model, record)", 2, 2, db_insert,
-        "Adds a row, checked by the rules of the fields: `Ok(record with its id)` or `Err({status: 422, error, fields})`.",
-        "Ajoute une ligne, vérifiée par les règles des champs : `Ok(enregistrement avec son id)` ou `Err({status: 422, error, fields})`."),
-        host!(
-            "insert_all",
-            "db.insert_all(model, records)",
-            2,
-            2,
-            db_insert_all,
-            "Adds several rows, all or none: `Ok(records)` or the first `Err`.",
-            "Ajoute plusieurs lignes, toutes ou aucune : `Ok(enregistrements)` ou la première `Err`."
-        ),
-        host!(
-            "update",
-            "db.update(model, id, changes)",
-            3,
-            3,
-            db_update,
-            "Changes the fields given of a row: `Ok(record)`, `Err(:not_found)` or `Err({status: 422, ...})`.",
-            "Change les champs donnés d'une ligne : `Ok(enregistrement)`, `Err(:not_found)` ou `Err({status: 422, ...})`."
-        ),
-        host!(
-            "save",
-            "db.save(model, record)",
-            2,
-            2,
-            db_save,
-            "Inserts a record without id, updates a record with one.",
-            "Insère un enregistrement sans id, met à jour un enregistrement qui en a un."
-        ),
-        host!(
-            "update_where",
-            "db.update_where(query, changes)",
-            2,
-            2,
-            db_update_where,
-            "Changes every row of a query: `Ok(number of rows)`.",
-            "Change toutes les lignes d'une requête : `Ok(nombre de lignes)`."
-        ),
-        host!(
-            "delete",
-            "db.delete(model, id)",
-            2,
-            2,
-            db_delete,
-            "Deletes a row: whether it existed.",
-            "Supprime une ligne : si elle existait."
-        ),
-        host!(
-            "delete_where",
-            "db.delete_where(query)",
-            1,
-            1,
-            db_delete_where,
-            "Deletes the rows of a query: how many.",
-            "Supprime les lignes d'une requête : combien."
-        ),
-        host!(
-            "paginate",
-            "db.paginate(query, page, per_page)",
-            2,
-            3,
-            db_paginate,
-            "A page of rows: `{items, page, per_page, total, pages}` (20 per page unless given).",
-            "Une page de lignes : `{items, page, per_page, total, pages}` (20 par page sauf indication)."
-        ),
-        host!(
-            "transaction",
-            "db.transaction(function)",
-            1,
-            1,
-            db_transaction,
-            "Runs the function in a transaction: kept if it returns anything but `Err(...)`, undone otherwise.",
-            "Exécute la fonction dans une transaction : gardée si elle renvoie autre chose que `Err(...)`, annulée sinon."
-        ),
-        host!(
-            "sql",
-            "db.sql(sql, parameters)",
-            1,
-            2,
-            db_sql,
-            "SQL written by hand, with `?` for the parameters: `Ok(records)` or `Err(message)`.",
-            "Du SQL écrit à la main, avec `?` pour les paramètres : `Ok(enregistrements)` ou `Err(message)`."
-        ),
-        host!(
-            "validate",
-            "db.validate(model, record)",
-            2,
-            2,
-            db_validate,
-            "Checks a record by the rules of the fields, without writing it.",
-            "Vérifie un enregistrement selon les règles des champs, sans l'écrire."
-        ),
-    ];
+pub static DB: &[Builtin] = &[
+    host!(
+        "all",
+        "db.all(query)",
+        1,
+        1,
+        db_all,
+        "The rows of a query, as a list of records.",
+        "Les lignes d'une requête, en liste d'enregistrements."
+    ),
+    host!(
+        "first",
+        "db.first(query)",
+        1,
+        1,
+        db_first,
+        "The first row: `Some(record)` or `None`.",
+        "La première ligne : `Some(enregistrement)` ou `None`."
+    ),
+    host!(
+        "find",
+        "db.find(model, id)",
+        2,
+        2,
+        db_find,
+        "The row of this id: `Some(record)` or `None`.",
+        "La ligne de cet id : `Some(enregistrement)` ou `None`."
+    ),
+    host!("count", "db.count(query)", 1, 1, db_count, "The number of rows.", "Le nombre de lignes."),
+    host!("exists", "db.exists(query)", 1, 1, db_exists, "Whether the query has rows.", "Si la requête a des lignes."),
+    host!(
+        "sum",
+        "db.sum(query, field)",
+        2,
+        2,
+        db_sum,
+        "The sum of a field: `Some(n)`, or `None` without rows.",
+        "La somme d'un champ : `Some(n)`, ou `None` sans lignes.",
+    ),
+    host!(
+        "avg",
+        "db.avg(query, field)",
+        2,
+        2,
+        db_avg,
+        "The average of a field: `Some(x)` or `None`.",
+        "La moyenne d'un champ : `Some(x)` ou `None`."
+    ),
+    host!(
+        "min",
+        "db.min(query, field)",
+        2,
+        2,
+        db_min,
+        "The smallest value: `Some(x)` or `None`.",
+        "La plus petite valeur : `Some(x)` ou `None`."
+    ),
+    host!(
+        "max",
+        "db.max(query, field)",
+        2,
+        2,
+        db_max,
+        "The largest value: `Some(x)` or `None`.",
+        "La plus grande valeur : `Some(x)` ou `None`."
+    ),
+    host!(
+        "count_by",
+        "db.count_by(query, field)",
+        2,
+        2,
+        db_count_by,
+        "How many rows for each value of a field, as a Dict.",
+        "Combien de lignes pour chaque valeur d'un champ, en Dict."
+    ),
+    host!(
+        "insert",
+        "db.insert(model, record)",
+        2,
+        2,
+        db_insert,
+        "Adds a row, checked by the rules of the fields: `Ok(record with its id)` or `Err({status: 422 error fields})`.",
+        "Ajoute une ligne, vérifiée par les règles des champs : `Ok(enregistrement avec son id)` ou `Err({status: 422 error fields})`."
+    ),
+    host!(
+        "insert_all",
+        "db.insert_all(model, records)",
+        2,
+        2,
+        db_insert_all,
+        "Adds several rows, all or none: `Ok(records)` or the first `Err`.",
+        "Ajoute plusieurs lignes, toutes ou aucune : `Ok(enregistrements)` ou la première `Err`."
+    ),
+    host!(
+        "update",
+        "db.update(model, id, changes)",
+        3,
+        3,
+        db_update,
+        "Changes the fields given of a row: `Ok(record)`, `Err(:not_found)` or `Err({status: 422, ...})`.",
+        "Change les champs donnés d'une ligne : `Ok(enregistrement)`, `Err(:not_found)` ou `Err({status: 422, ...})`."
+    ),
+    host!(
+        "save",
+        "db.save(model, record)",
+        2,
+        2,
+        db_save,
+        "Inserts a record without id, updates a record with one.",
+        "Insère un enregistrement sans id, met à jour un enregistrement qui en a un."
+    ),
+    host!(
+        "update_where",
+        "db.update_where(query, changes)",
+        2,
+        2,
+        db_update_where,
+        "Changes every row of a query: `Ok(number of rows)`.",
+        "Change toutes les lignes d'une requête : `Ok(nombre de lignes)`."
+    ),
+    host!(
+        "delete",
+        "db.delete(model, id)",
+        2,
+        2,
+        db_delete,
+        "Deletes a row: whether it existed.",
+        "Supprime une ligne : si elle existait."
+    ),
+    host!(
+        "delete_where",
+        "db.delete_where(query)",
+        1,
+        1,
+        db_delete_where,
+        "Deletes the rows of a query: how many.",
+        "Supprime les lignes d'une requête : combien."
+    ),
+    host!(
+        "paginate",
+        "db.paginate(query, page, per_page)",
+        2,
+        3,
+        db_paginate,
+        "A page of rows: `{items, page, per_page, total, pages}` (20 per page unless given).",
+        "Une page de lignes : `{items, page, per_page, total, pages}` (20 par page sauf indication)."
+    ),
+    host!(
+        "transaction",
+        "db.transaction(function)",
+        1,
+        1,
+        db_transaction,
+        "Runs the function in a transaction: kept if it returns anything but `Err(...)`, undone otherwise.",
+        "Exécute la fonction dans une transaction : gardée si elle renvoie autre chose que `Err(...)`, annulée sinon."
+    ),
+    host!(
+        "sql",
+        "db.sql(sql, parameters)",
+        1,
+        2,
+        db_sql,
+        "SQL written by hand, with `?` for the parameters: `Ok(records)` or `Err(message)`.",
+        "Du SQL écrit à la main, avec `?` pour les paramètres : `Ok(enregistrements)` ou `Err(message)`."
+    ),
+    host!(
+        "validate",
+        "db.validate(model, record)",
+        2,
+        2,
+        db_validate,
+        "Checks a record by the rules of the fields, without writing it.",
+        "Vérifie un enregistrement selon les règles des champs, sans l'écrire."
+    ),
+];
 
 pub fn install(it: &mut Interp) {
     util::define(it, ORM);

@@ -1,4 +1,4 @@
-//! Whole pages, finished on the server: `page({title, description}, [h1("Bonjour")])`.
+//! Whole pages, finished on the server: `page({title description} [h1("Bonjour")])`.
 //!
 //! The head carries what search engines and social networks read (title,
 //! description, canonical URL, Open Graph, Twitter, JSON-LD); islands get the
@@ -181,7 +181,7 @@ fn page(_: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
     Ok(response_value(status, vec![("content-type".into(), "text/html; charset=utf-8".into())], &document(&opts, &body)))
 }
 
-/// `island(compteur.component, {depart: 3})`: a component computed on the
+/// `island(compteur.component {depart: 3})`: a component computed on the
 /// server, then brought to life in the browser by WebAssembly.
 fn island(it: &mut Interp, a: &[Value], span: Span) -> Fallible<Value> {
     let c = Component::from_value(&a[0], span)?;
@@ -228,12 +228,12 @@ pub static PAGE: &[Builtin] = &[
         "A whole HTML page. Settings: `{title, description, lang, url, image, css: [...], js: [...], head: [...], json_ld, theme_color, alternates, status}`.",
         "Une page HTML entière. Réglages : `{title, description, lang, url, image, css: [...], js: [...], head: [...], json_ld, theme_color, alternates, status}`."),
     host!("island", "island(component, props)", 1, 2, island,
-        "A component computed on the server and brought to life in the browser by WebAssembly: `island(compteur.component, {depart: 0})`.",
-        "Un composant calculé sur le serveur puis animé dans le navigateur par WebAssembly : `island(compteur.component, {depart: 0})`."),
+        "A component computed on the server and brought to life in the browser by WebAssembly: `island(compteur.component {depart: 0})`.",
+        "Un composant calculé sur le serveur puis animé dans le navigateur par WebAssembly : `island(compteur.component {depart: 0})`."),
     host!("stylesheet", "stylesheet(href)", 1, 1, stylesheet,
         "A `<link rel=\"stylesheet\">`.", "Un `<link rel=\"stylesheet\">`."),
     host!("script", "script(src)", 1, 1, script,
         "A `<script type=\"module\">` loaded from a file.", "Un `<script type=\"module\">` chargé depuis un fichier."),
     host!("meta", "meta(attributes)", 1, 1, meta_fn,
-        "A `<meta>` element: `meta({name: \"author\", content: \"Ada\"})`.", "Un élément `<meta>` : `meta({name: \"author\", content: \"Ada\"})`."),
+        "A `<meta>` element: `meta({name: \"author\" content: \"Ada\"})`.", "Un élément `<meta>` : `meta({name: \"author\" content: \"Ada\"})`."),
 ];

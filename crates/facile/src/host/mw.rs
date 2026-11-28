@@ -1,6 +1,6 @@
 //! `mw`: the middlewares written in Rust, as fast as the engine.
 //!
-//! `middleware(app, mw.cors(["*"]))`. They wrap the middlewares written in
+//! `middleware(app mw.cors(["*"]))`. They wrap the middlewares written in
 //! Rythme: those that can refuse a request (limits, authentication, WAF) run
 //! before the cache and the handlers, those that add headers run on every
 //! response, cached ones included.

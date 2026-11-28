@@ -1,4 +1,4 @@
-//! Views written in Rythme: `div({class: "carte"}, [h2("Titre"), p("Texte")])`.
+//! Views written in Rythme: `div({class: "carte"} [h2("Titre") p("Texte")])`.
 //!
 //! An element is a record `{tag, attrs, children}`; its children are texts,
 //! elements and raw HTML (`{raw: "<b>x</b>"}`). The server writes them as
@@ -160,8 +160,8 @@ macro_rules! tags {
                     min: 0,
                     max: 2,
                     cat: util::CATEGORY,
-                    en: concat!("The HTML element <", stringify!($name), ">: `", stringify!($name), "(children)` or `", stringify!($name), "({class: \"x\"}, children)`."),
-                    fr: concat!("L'élément HTML <", stringify!($name), "> : `", stringify!($name), "(enfants)` ou `", stringify!($name), "({class: \"x\"}, enfants)`."),
+                    en: concat!("The HTML element <", stringify!($name), ">: `", stringify!($name), "(children)` or `", stringify!($name), "({class: \"x\"} children)`."),
+                    fr: concat!("L'élément HTML <", stringify!($name), "> : `", stringify!($name), "(enfants)` ou `", stringify!($name), "({class: \"x\"} enfants)`."),
                     example: "",
                     func: $name,
                 },
@@ -184,8 +184,8 @@ pub static VIEW: &[Builtin] = &[
         1,
         3,
         h,
-        "Any HTML element: `h(\"input\", {name: \"q\"})`, `h(\"my-widget\", [\"text\"])`.",
-        "N'importe quel élément HTML : `h(\"input\", {name: \"q\"})`, `h(\"mon-widget\", [\"texte\"])`."
+        "Any HTML element: `h(\"input\" {name: \"q\"})`, `h(\"my-widget\", [\"text\"])`.",
+        "N'importe quel élément HTML : `h(\"input\" {name: \"q\"})`, `h(\"mon-widget\", [\"texte\"])`."
     ),
     host!(
         "raw",

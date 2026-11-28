@@ -47,7 +47,7 @@ chaque requête.
 |---|---|
 | ⚡ **Aussi rapide que Vitesse** | Un thread par cœur, epoll, pipelining, aucun verrou ni allocation sur le chemin d'une requête. Sur le banc d'essai de Vitesse, Facile et Vitesse sont au coude-à-coude, loin devant actix-web et axum (voir plus bas). |
 | ♻️ **Le cache de la pureté** | Rythme est purement fonctionnel : une réponse qui ne lit que son chemin est gardée et redonnée en ~70 ns de CPU, sans rien configurer. Facile observe ce que lit le handler (en-têtes, base, horloge, fichiers) et ne garde que ce qui est sûr. |
-| 🧅 **Middlewares** | En Rythme (`fn(req, next)`), ou natifs en Rust avec `mw` : WAF, robots, en-têtes de sécurité et CSP, CSRF, CORS, limite de débit, Basic/Bearer, gzip, identifiants, journaux. |
+| 🧅 **Middlewares** | En Rythme (`fn(req next)`), ou natifs en Rust avec `mw` : WAF, robots, en-têtes de sécurité et CSP, CSRF, CORS, limite de débit, Basic/Bearer, gzip, identifiants, journaux. |
 | 🗄️ **Un ORM qui gère tout** | Modèles, requêtes composables, validation, relations (`include`), agrégats, pagination, transactions (points de sauvegarde), SQL à la main, migrations automatiques, API REST en une ligne. En mémoire, SQLite ou PostgreSQL. |
 | 🏝️ **Front en WebAssembly** | Les composants s'écrivent en Rythme (`init`, `update`, `view`, effets) et tournent dans le navigateur. Le serveur envoie leur première vue en HTML ; seule la partie qui change est réécrite. |
 | 🔎 **Pages et SEO** | `page({...})` écrit tout le `<head>` : titre, description, canonique, Open Graph, Twitter, JSON-LD, hreflang. `markdown()` rend la documentation, avec le code Rythme coloré. |

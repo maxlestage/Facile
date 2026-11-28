@@ -8,7 +8,7 @@ L'ORM de Facile décrit les données avec des **modèles**, les cherche avec des
 | `sqlite://app.db` | SQLite, compilé dans `facile` : rien à installer |
 | `postgres://user:mdp@hote/base` | PostgreSQL, en TLS (Heroku Postgres, Supabase...) |
 
-L'URL vient de la variable `DATABASE_URL`, ou de `database(app, "sqlite://app.db")`.
+L'URL vient de la variable `DATABASE_URL`, ou de `database(app "sqlite://app.db")`.
 
 ## Modèles
 
@@ -86,7 +86,7 @@ avec_projet = taches |> include(:projet) |> db.all       # chaque tâche a son c
 avec_taches = projets |> include(:taches) |> db.all      # chaque projet a la liste de ses tâches
 ```
 
-`belongs_to("projets")` enregistre `projet_id` ; `has_many("taches", :projet)` lit les tâches dont `projet_id` est l'id du projet. `include` fait **une requête de plus**, pas une par ligne.
+`belongs_to("projets")` enregistre `projet_id` ; `has_many("taches" :projet)` lit les tâches dont `projet_id` est l'id du projet. `include` fait **une requête de plus**, pas une par ligne.
 
 ## Écrire
 
@@ -143,4 +143,4 @@ app("API") |> resource("/api/taches" taches)
 | `PATCH /api/taches/:id` | change les champs donnés |
 | `DELETE /api/taches/:id` | `204`, ou `404` |
 
-`resource(app, chemin, modele, [:list, :show])` ne garde que certaines actions. Les middlewares de l'application s'appliquent aussi à ces routes.
+`resource(app chemin modele [:list :show])` ne garde que certaines actions. Les middlewares de l'application s'appliquent aussi à ces routes.
